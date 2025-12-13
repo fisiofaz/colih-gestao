@@ -1,0 +1,86 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ENUMS: Ajudam a padronizar as escolhas 
+enum UserRole {
+  ADMIN
+  MEMBER
+  VIEWER
+}
+
+enum ContactType {
+  NEW_CONTACT       
+  UPDATE_INFO      
+}
+
+enum DoctorType {
+  COOPERATING       // Médico cooperador 
+  CONSULTANT        // Médico consultor 
+  OTHER             
+}
+
+enum Gender {
+  MALE
+  FEMALE
+}
+
+// MODELO DO USUÁRIO DO SISTEMA (Membro da Colih)
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String
+  role      UserRole @default(MEMBER)
+  createdAt DateTime @default(now())
+  
+  // Relação: Um usuário pode cadastrar vários médicos
+  createdDoctors Doctor[]
+}
+
+// MODELO DO MÉDICO
+model Doctor {
+  id String @id @default(cuid())
+
+  // Parte 1: Metadados do contato
+  type        DoctorType
+  contactDate DateTime?  
+  
+  // Parte 2: Dados Pessoais
+  firstName   String      
+  lastName    String      
+  phoneHome   String?
+  phoneMobile String?     
+  email       String? 
+  gender      Gender   
+  address     String   
+  city        String     
+  state       String  
+  zipCode     String
+  country     String
+
+  
+  // Parte 3: Dados Médicos
+  specialty1      String    // [cite: 35] - Obrigatório ter pelo menos uma
+  specialty2      String?   // [cite: 36]
+  specialty3      String?   // [cite: 37]
+  subSpecialties  String?   // [cite: 38] - Podemos guardar como texto ou criar outra tabela depois
+  
+  // Tipos de pacientes [cite: 39-42]
+  acceptsAdult    Boolean @default(false)
+  acceptsChild    Boolean @default(false)
+  acceptsNewborn  Boolean @default(false)
+
+  // Controle do Sistema
+  notes           String?   // [cite: 11, 43]
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  // Quem cadastrou?
+  createdBy       User     @relation(fields: [createdById], references: [id])
+  createdById     String
+}
