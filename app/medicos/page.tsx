@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { DOCTOR_TYPE_LABELS } from "@/lib/constants";
 
@@ -22,9 +23,12 @@ export default async function MedicosPage() {
               Listagem de profissionais cadastrados na COLIH
             </p>
           </div>
-          <button className="bg-blue-700 hover:bg-blue-800 text-white px-6 py-2.5 rounded-lg shadow-sm transition-all flex items-center gap-2 font-medium">
+          <Link
+            href="/medicos/novo"
+            className="bg-blue-700 hover:bg-blue-800 text-white px-6 py-2.5 rounded-lg shadow-sm transition-all flex items-center gap-2 font-medium"
+          >
             <span>+</span> Novo Médico
-          </button>
+          </Link>
         </header>
 
         {/* GRID DE CARDS */}
