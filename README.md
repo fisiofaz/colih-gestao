@@ -1,36 +1,54 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 🏥 COLIH Gestão
 
-## Getting Started
+Sistema de gerenciamento de informações para a Comissão de Ligação com Hospitais (Centro Oeste Gaúcha).
+O objetivo é facilitar o cadastro, busca e atualização de dados de médicos cooperadores e membros da equipe.
 
-First, run the development server:
+## 🚀 Tecnologias Utilizadas
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+- **Frontend:** Next.js 14/15 (App Router)
+- **Linguagem:** TypeScript
+- **Estilização:** Tailwind CSS
+- **Banco de Dados:** PostgreSQL (via Neon.tech)
+- **ORM:** Prisma (v5.14.0)
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## 🛠️ Pré-requisitos
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+- Node.js (versão 18 ou superior)
+- Conta no Neon.tech (ou banco Postgres local)
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## 📦 Como rodar o projeto
 
-## Learn More
+1. **Clone o repositório:**
+   ```bash
+   git clone [https://https://github.com/fisiofaz/colih-gestao.git](https://https://github.com/fisiofaz/colih-gestao.git)
+   cd colih-gestao
+   ```
+2. **Instale as dependências:**
+    ```bash
+    npm install
+    ```
+3. **Configure as Variáveis de Ambiente:** Crie um arquivo .env na raiz do projeto e adicione a URL do   seu banco de dados:
+    ```bash
+    DATABASE_URL="postgresql://usuario:senha@host/banco?sslmode=require"
+    ```
+4. **Prepare o Banco de Dados:**
+    ```bash
+    npx prisma generate
+    npx prisma migrate dev
+    ```
+5. **Inicie o Servidor de Desenvolvimento:**
+    ```bash
+    npm run dev
+    ```
+    Acesse <code>http://localhost:3000</code> no seu navegador.
 
-To learn more about Next.js, take a look at the following resources:
+## 🗂️ Estrutura do Banco de Dados
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- O projeto possui duas entidades principais:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+    - User: Membros da comissão com acesso ao sistema.
 
-## Deploy on Vercel
+    - Doctor: Médicos, seus contatos e especialidades.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+<hr>
+<p>Desenvolvido como projeto de treinamento e implementação real.</P>
