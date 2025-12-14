@@ -14,8 +14,7 @@ export async function createDoctor(data: DoctorFormData) {
   }
 
   // 2. Salvar no Banco
-  // Precisamos de um ID de usuário "fake" pois ainda não temos sistema de login real.
-  // Vamos pegar o primeiro usuário que acharmos no banco (o Admin que criamos no seed).
+  
   const adminUser = await prisma.user.findFirst();
 
   if (!adminUser) {
@@ -40,4 +39,25 @@ export async function createDoctor(data: DoctorFormData) {
   // 3. Atualizar a lista e Redirecionar
   revalidatePath("/medicos"); // Avisa a lista para recarregar os dados
   redirect("/medicos"); // Manda o usuário de volta para a lista
+}
+
+export async function updateDoctor(id: string, data: DoctorFormData) {
+  const result = doctorSchema.safeParse(data);
+
+  if (!result.success) {
+    return { success: false, error: "Dados inválidos." };
+  }
+
+  try {
+    await prisma.doctor.update({
+      where: { id }, // AQUI ESTÁ O SEGREDO: Busca pelo ID
+      data: result.data, // Atualiza com os novos dados
+    });
+  } catch (error) {
+    console.error("Erro ao atualizar:", error);
+    return { success: false, error: "Erro ao atualizar no banco." };
+  }
+
+  revalidatePath("/medicos");
+  redirect("/medicos");
 }

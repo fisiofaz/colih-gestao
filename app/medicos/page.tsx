@@ -42,8 +42,25 @@ export default async function MedicosPage() {
               <div className="flex justify-between items-start mb-4">
                 <div>
                   <h2 className="text-xl font-bold text-slate-900">
-                    Dr{doctor.gender === "FEMALE" ? "a" : ""}.{" "}
-                    {doctor.firstName} {doctor.lastName}
+                    {/* LÓGICA INTELIGENTE DE PREFIXO */}
+                    {(() => {
+                      // 1. Monta o nome completo
+                      const fullName = `${doctor.firstName} ${doctor.lastName}`;
+
+                      // 2. Verifica se o usuário já digitou "Dr." ou "Dra." no nome
+                      const hasPrefix =
+                        fullName.toLowerCase().startsWith("dr.") ||
+                        fullName.toLowerCase().startsWith("dra.");
+
+                      // 3. Define o prefixo correto baseado no sexo (se precisar adicionar)
+                      const automaticPrefix =
+                        doctor.gender === "FEMALE" ? "Dra." : "Dr.";
+
+                      // 4. Retorna o nome ajustado
+                      return hasPrefix
+                        ? fullName
+                        : `${automaticPrefix} ${fullName}`;
+                    })()}
                   </h2>
                   <span className="inline-block mt-1 px-3 py-1 bg-blue-50 text-blue-700 text-xs font-semibold rounded-full border border-blue-100">
                     {doctor.specialty1}
@@ -88,8 +105,18 @@ export default async function MedicosPage() {
               </div>
 
               {/* Rodapé do Card */}
-              <div className="mt-4 pt-3 border-t border-slate-50 text-xs text-slate-400 flex justify-between items-center">
-                <span>Atualizado recentemente</span>
+              <div className="mt-4 pt-3 border-t border-slate-50 flex justify-between items-center">
+                <span className="text-xs text-slate-400">
+                  Atualizado recentemente
+                </span>
+
+                {/* Link para a página de edição */}
+                <Link
+                  href={`/medicos/${doctor.id}/editar`}
+                  className="text-blue-600 hover:text-blue-800 text-sm font-medium flex items-center gap-1 hover:underline"
+                >
+                  ✏️ Editar
+                </Link>
               </div>
             </div>
           ))}
