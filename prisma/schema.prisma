@@ -35,12 +35,10 @@ model User {
   id            String    @id @default(cuid())
   name          String?
   email         String?   @unique
-  emailVerified DateTime?
-  image         String?
+  password      String?
   role          String    @default("USER")
-  
-  // ADICIONE ESTA LINHA:
-  password      String?   // A interrogação permite que seja opcional (caso use Google login no futuro)
+
+  mustChangePassword Boolean @default(true)
   
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt

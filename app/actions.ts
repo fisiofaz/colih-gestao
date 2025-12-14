@@ -5,9 +5,8 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import * as bcrypt from "bcryptjs";
-import { signIn, signOut } from "@/auth";
+import { auth, signIn, signOut } from "@/auth";
 import { AuthError } from "next-auth";
-
 import { Prisma } from "@prisma/client";
 
 // --- TIPO GLOBAL PARA O ESTADO DOS FORMULÁRIOS ---
@@ -39,6 +38,15 @@ const CreateUserSchema = z.object({
   name: z.string().min(3, "Nome deve ter pelo menos 3 letras"),
   email: z.string().email("Email inválido"),
   password: z.string().min(6, "A senha deve ter no mínimo 6 caracteres"),
+});
+
+// Schema para validar as duas senhas
+const ChangePasswordSchema = z.object({
+  password: z.string().min(6, "A nova senha deve ter no mínimo 6 caracteres"),
+  confirmPassword: z.string().min(6),
+}).refine((data) => data.password === data.confirmPassword, {
+  message: "As senhas não conferem",
+  path: ["confirmPassword"],
 });
 
 // --- ACTIONS DE MÉDICOS ---
@@ -178,7 +186,8 @@ export async function createUser(prevState: State, formData: FormData) {
         name,
         email,
         password: hashedPassword,
-      }
+        mustChangePassword: true,
+      },
     });
   } catch (error) {
     return { message: "Erro ao criar usuário. Talvez o email já exista." };
@@ -186,4 +195,41 @@ export async function createUser(prevState: State, formData: FormData) {
 
   revalidatePath("/membros");
   redirect("/membros");
+}
+
+export async function updatePassword(prevState: State, formData: FormData) {
+  const session = await auth();
+  if (!session?.user?.email) return { message: "Usuário não autenticado" };
+
+  const validatedFields = ChangePasswordSchema.safeParse({
+    password: formData.get("password"),
+    confirmPassword: formData.get("confirmPassword"),
+  });
+
+  if (!validatedFields.success) {
+    return {
+      errors: validatedFields.error.flatten().fieldErrors,
+      message: "Erro na validação.",
+    };
+  }
+
+  const { password } = validatedFields.data;
+
+  try {
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Atualiza a senha E remove a obrigatoriedade de troca
+    await prisma.user.update({
+      where: { email: session.user.email },
+      data: {
+        password: hashedPassword,
+        mustChangePassword: false, 
+      },
+    });
+  } catch (error) {
+    return { message: "Erro ao atualizar senha." };
+  }
+
+  // Redireciona para a home
+  redirect("/");
 }

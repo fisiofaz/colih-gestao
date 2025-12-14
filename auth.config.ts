@@ -8,21 +8,37 @@ export const authConfig = {
     authorized({ auth, request: { nextUrl } }) {
       const isLoggedIn = !!auth?.user;
 
-      // AQUI ESTAVA O PROBLEMA: Adicionamos "/membros" na lista de rotas protegidas
-      const isOnProtectedRoutes =
+      // AQUI ESTAVA O ERRO EM VERMELHO
+      // Trocamos o 'any' por uma definição específica
+      const user = auth?.user as { mustChangePassword?: boolean } | undefined;
+      const mustChangePassword = user?.mustChangePassword;
+
+      const isOnDashboard =
         nextUrl.pathname === "/" ||
         nextUrl.pathname.startsWith("/medicos") ||
         nextUrl.pathname.startsWith("/membros");
-
+      const isOnChangePassword = nextUrl.pathname === "/trocar-senha";
       const isOnLogin = nextUrl.pathname.startsWith("/login");
 
-      if (isOnProtectedRoutes) {
-        if (isLoggedIn) return true;
-        return false; // Redireciona para /login se não estiver logado
-      } else if (isLoggedIn && isOnLogin) {
-        // Se já está logado e tenta ir pro login, manda pro dashboard
+      // 1. Se precisa trocar a senha
+      if (isLoggedIn && mustChangePassword) {
+        if (isOnChangePassword) return true;
+        return Response.redirect(new URL("/trocar-senha", nextUrl));
+      }
+
+      // 2. Se NÃO precisa trocar senha, mas tenta acessar a pagina de troca
+      if (isLoggedIn && !mustChangePassword && isOnChangePassword) {
         return Response.redirect(new URL("/", nextUrl));
       }
+
+      // 3. Lógica padrão de proteção
+      if (isOnDashboard) {
+        if (isLoggedIn) return true;
+        return false;
+      } else if (isLoggedIn && isOnLogin) {
+        return Response.redirect(new URL("/", nextUrl));
+      }
+
       return true;
     },
   },

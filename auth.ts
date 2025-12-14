@@ -8,12 +8,14 @@ import type { User } from "@prisma/client";
 
 async function getUser(email: string): Promise<User | null> {
   try {
-    const user = await prisma.user.findUnique({ where: { email } });
-    return user;
+    return await prisma.user.findUnique({ where: { email } });
   } catch (error) {
-    console.error("Falha ao buscar usuário:", error);
     throw new Error("Falha ao buscar usuário.");
   }
+}
+
+interface UserWithPasswordStatus {
+  mustChangePassword?: boolean;
 }
 
 export const { auth, signIn, signOut } = NextAuth({
@@ -28,20 +30,37 @@ export const { auth, signIn, signOut } = NextAuth({
 
         if (parsedCredentials.success) {
           const { email, password } = parsedCredentials.data;
-
           // Busca o usuário no banco
           const user = await getUser(email);
           if (!user) return null;
 
           // Verifica se a senha bate (usando bcrypt)
-          const passwordsMatch = await bcrypt.compare(password, user.password);
+          const passwordsMatch = await bcrypt.compare(
+            password,
+            user.password as string
+          );
 
           if (passwordsMatch) return user;
         }
-
-        console.log("Credenciais inválidas");
         return null;
       },
     }),
   ],
+  callbacks: {
+    async jwt({ token, user }) {
+      if (user) {
+        token.mustChangePassword = (
+          user as UserWithPasswordStatus
+        ).mustChangePassword;
+      }
+      return token;
+    },
+    async session({ session, token }) {
+      if (token.sub && session.user) {
+        (session.user as UserWithPasswordStatus).mustChangePassword =
+          token.mustChangePassword as boolean;
+      }
+      return session;
+    },
+  },
 });
