@@ -2,18 +2,55 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { DOCTOR_TYPE_LABELS } from "@/lib/constants";
 import { DeleteButton } from "./components/delete-button";
+import Search from "./components/search";
+
+// Definimos o tipo das props da página
+interface PageProps {
+  searchParams: Promise<{
+    query?: string;
+  }>;
+}
 
 // Esta função roda no SERVIDOR. É seguro buscar dados aqui.
-export default async function MedicosPage() {
-  // 1. Buscamos os médicos no banco, ordenados por nome
+export default async function MedicosPage({ searchParams }: PageProps) {
+  // Lemos o parâmetro da busca da URL (aguardando a Promise)
+  const query = (await searchParams).query || "";
+
+  // Buscamos os médicos no banco, ordenados por nome, sobrenome ou especialidade
   const doctors = await prisma.doctor.findMany({
-    orderBy: { firstName: "asc" },
-    include: { createdBy: true }, // Trazemos o nome de quem cadastrou
+    where: {
+      OR: [
+        // Busca no Nome (Ignorando maiúsculas/minúsculas)
+        {
+          firstName: {
+            contains: query,
+            mode: "insensitive",
+          },
+        },
+        // OU no Sobrenome
+        {
+          lastName: {
+            contains: query,
+            mode: "insensitive",
+          },
+        },
+        // OU na Especialidade
+        {
+          specialty1: {
+            contains: query,
+            mode: "insensitive",
+          },
+        },
+      ],
+    },
+    orderBy: {
+      firstName: "asc",
+    },
   });
 
   return (
     <div className="min-h-screen bg-slate-50 p-8">
-      <div className="max-w-7xl mx-auto">
+      <main className="max-w-7xl mx-auto">
         {/* Cabeçalho da Página */}
         <header className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
           <div>
@@ -31,9 +68,13 @@ export default async function MedicosPage() {
             <span>+</span> Novo Médico
           </Link>
         </header>
+        {/* Componente de Busca */}
+        <section className="mb-6 max-w-md">
+          <Search />
+        </section>
 
         {/* GRID DE CARDS */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {doctors.map((doctor) => (
             <div
               key={doctor.id}
@@ -136,8 +177,8 @@ export default async function MedicosPage() {
               </p>
             </div>
           )}
-        </div>
-      </div>
+        </section>
+      </main>
     </div>
   );
 }
