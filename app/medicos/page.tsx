@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { DOCTOR_TYPE_LABELS } from "@/lib/constants";
+import { DeleteButton } from "./components/delete-button";
 
 // Esta função roda no SERVIDOR. É seguro buscar dados aqui.
 export default async function MedicosPage() {
@@ -106,11 +107,10 @@ export default async function MedicosPage() {
 
               {/* Rodapé do Card */}
               <div className="mt-4 pt-3 border-t border-slate-50 flex justify-between items-center">
-                <span className="text-xs text-slate-400">
-                  Atualizado recentemente
-                </span>
+                {/* Botão de Excluir (Esquerda) */}
+                <DeleteButton id={doctor.id} name={doctor.firstName} />
 
-                {/* Link para a página de edição */}
+                {/* Link de Editar (Direita) */}
                 <Link
                   href={`/medicos/${doctor.id}/editar`}
                   className="text-blue-600 hover:text-blue-800 text-sm font-medium flex items-center gap-1 hover:underline"

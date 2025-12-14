@@ -61,3 +61,16 @@ export async function updateDoctor(id: string, data: DoctorFormData) {
   revalidatePath("/medicos");
   redirect("/medicos");
 }
+
+export async function deleteDoctor(id: string) {
+  try {
+    await prisma.doctor.delete({
+      where: { id },
+    });
+  } catch (error) {
+    return { success: false, error: "Erro ao excluir." };
+  }
+
+  // Atualiza a lista para o médico sumir da tela imediatamente
+  revalidatePath("/medicos");
+}
