@@ -4,6 +4,8 @@ import { prisma } from "@/lib/prisma";
 import { doctorSchema, DoctorFormData } from "@/lib/schemas";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { signIn } from "@/auth";
+import { AuthError } from "next-auth";
 
 export async function createDoctor(data: DoctorFormData) {
   // 1. Validar os dados de novo (segurança extra contra hackers)
@@ -73,4 +75,25 @@ export async function deleteDoctor(id: string) {
 
   // Atualiza a lista para o médico sumir da tela imediatamente
   revalidatePath("/medicos");
+}
+
+export async function authenticate(
+  prevState: string | undefined,
+  formData: FormData
+) {
+  try {
+    // Tenta fazer o login usando o provider 'credentials'
+    await signIn("credentials", formData);
+  } catch (error) {
+    if (error instanceof AuthError) {
+      switch (error.type) {
+        case "CredentialsSignin":
+          return "E-mail ou senha incorretos.";
+        default:
+          return "Algo deu errado. Tente novamente.";
+      }
+    }
+    // O NextAuth lança um erro para redirecionar, precisamos deixar passar
+    throw error;
+  }
 }
