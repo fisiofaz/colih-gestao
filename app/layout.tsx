@@ -43,8 +43,8 @@ export default function RootLayout({
                   Médicos
                 </Link>
                 <Link
-                  href="/membros"
-                  className="hover:bg-blue-800 px-3 py-2 rounded-md text-sm font-medium transition-colors opacity-50 cursor-not-allowed"
+                  href="/login"
+                  className="hover:bg-blue-800 px-3 py-2 rounded-md text-sm font-medium transition-colors"
                   title="Em breve"
                 >
                   Membros
