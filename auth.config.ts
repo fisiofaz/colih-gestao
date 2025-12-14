@@ -1,27 +1,30 @@
-// auth.config.ts
 import type { NextAuthConfig } from "next-auth";
 
 export const authConfig = {
   pages: {
-    signIn: "/login", // Se não estiver logado, manda pra cá
+    signIn: "/login",
   },
   callbacks: {
     authorized({ auth, request: { nextUrl } }) {
       const isLoggedIn = !!auth?.user;
 
-      // Rotas protegidas (Dashboard e Médicos)
-      const isOnDashboard =
-        nextUrl.pathname === "/" || nextUrl.pathname.startsWith("/medicos");
+      // AQUI ESTAVA O PROBLEMA: Adicionamos "/membros" na lista de rotas protegidas
+      const isOnProtectedRoutes =
+        nextUrl.pathname === "/" ||
+        nextUrl.pathname.startsWith("/medicos") ||
+        nextUrl.pathname.startsWith("/membros");
 
-      if (isOnDashboard) {
+      const isOnLogin = nextUrl.pathname.startsWith("/login");
+
+      if (isOnProtectedRoutes) {
         if (isLoggedIn) return true;
-        return false; // Redireciona para /login
-      } else if (isLoggedIn) {
+        return false; // Redireciona para /login se não estiver logado
+      } else if (isLoggedIn && isOnLogin) {
         // Se já está logado e tenta ir pro login, manda pro dashboard
         return Response.redirect(new URL("/", nextUrl));
       }
       return true;
     },
   },
-  providers: [], // Vamos configurar o login com credenciais no próximo passo
+  providers: [],
 } satisfies NextAuthConfig;

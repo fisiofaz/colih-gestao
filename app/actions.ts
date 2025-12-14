@@ -1,64 +1,114 @@
-"use server"; 
+"use server";
 
 import { prisma } from "@/lib/prisma";
-import { doctorSchema, DoctorFormData } from "@/lib/schemas";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { z } from "zod";
+import * as bcrypt from "bcryptjs";
 import { signIn, signOut } from "@/auth";
 import { AuthError } from "next-auth";
 
+import { Prisma } from "@prisma/client";
 
-export async function createDoctor(data: DoctorFormData) {
-  // 1. Validar os dados de novo (segurança extra contra hackers)
-  const result = doctorSchema.safeParse(data);
+// --- TIPO GLOBAL PARA O ESTADO DOS FORMULÁRIOS ---
+// Isso substitui o 'any' e remove o erro do prevState
+export type State = {
+  errors?: {
+    [key: string]: string[];
+  };
+  message?: string | null;
+} | null;
 
-  if (!result.success) {
-    return { success: false, error: "Dados inválidos enviadas." };
-  }
+// --- SCHEMAS DE VALIDAÇÃO (ZOD) ---
 
-  // 2. Salvar no Banco
-  
-  const adminUser = await prisma.user.findFirst();
+const DoctorSchema = z.object({
+  firstName: z.string().min(1, "Nome é obrigatório"),
+  lastName: z.string().min(1, "Sobrenome é obrigatório"),
+  email: z.string().email("E-mail inválido").optional().or(z.literal("")),
+  phoneMobile: z.string().min(1, "Celular é obrigatório"),
+  city: z.string().min(1, "Cidade é obrigatória"),
+  state: z.string().length(2, "Estado deve ter 2 letras"),
+  specialty1: z.string().min(1, "Especialidade principal é obrigatória"),
+  type: z.enum(["COOPERATING", "CONSULTANT", "OTHER"]),
+  acceptsAdult: z.boolean().optional(),
+  acceptsChild: z.boolean().optional(),
+  acceptsNewborn: z.boolean().optional(),
+});
 
-  if (!adminUser) {
+const CreateUserSchema = z.object({
+  name: z.string().min(3, "Nome deve ter pelo menos 3 letras"),
+  email: z.string().email("Email inválido"),
+  password: z.string().min(6, "A senha deve ter no mínimo 6 caracteres"),
+});
+
+// --- ACTIONS DE MÉDICOS ---
+
+export async function createDoctor(prevState: State, formData: FormData) {
+  const rawFormData = Object.fromEntries(formData.entries());
+
+  const dataToValidate = {
+    ...rawFormData,
+    acceptsAdult: rawFormData.acceptsAdult === "on",
+    acceptsChild: rawFormData.acceptsChild === "on",
+    acceptsNewborn: rawFormData.acceptsNewborn === "on",
+  };
+
+  const validatedFields = DoctorSchema.safeParse(dataToValidate);
+
+  if (!validatedFields.success) {
     return {
-      success: false,
-      error: "Nenhum usuário admin encontrado para vincular.",
+      errors: validatedFields.error.flatten().fieldErrors,
+      message: "Faltam campos obrigatórios. Verifique o formulário.",
     };
   }
 
   try {
-    await prisma.doctor.create({
-      data: {
-        ...result.data, // Espalha todos os campos (firstName, lastName, etc)
-        createdById: adminUser.id, // Vincula quem criou
-      },
-    });
+    // O 'unknown' serve para 'limpar' o tipo do Zod antes de afirmar que é um Input do Prisma
+    const data = validatedFields.data as unknown as Prisma.DoctorCreateInput;
+
+    await prisma.doctor.create({ data });
   } catch (error) {
-    console.error("Erro ao salvar:", error);
-    return { success: false, error: "Erro de banco de dados." };
+    return {
+      message: "Erro no Banco de Dados: Falha ao criar médico.",
+    };
   }
 
-  // 3. Atualizar a lista e Redirecionar
-  revalidatePath("/medicos"); // Avisa a lista para recarregar os dados
-  redirect("/medicos"); // Manda o usuário de volta para a lista
+  revalidatePath("/medicos");
+  redirect("/medicos");
 }
 
-export async function updateDoctor(id: string, data: DoctorFormData) {
-  const result = doctorSchema.safeParse(data);
+export async function updateDoctor(
+  id: string,
+  prevState: State,
+  formData: FormData
+) {
+  const rawFormData = Object.fromEntries(formData.entries());
 
-  if (!result.success) {
-    return { success: false, error: "Dados inválidos." };
+  const dataToValidate = {
+    ...rawFormData,
+    acceptsAdult: rawFormData.acceptsAdult === "on",
+    acceptsChild: rawFormData.acceptsChild === "on",
+    acceptsNewborn: rawFormData.acceptsNewborn === "on",
+  };
+
+  const validatedFields = DoctorSchema.safeParse(dataToValidate);
+
+  if (!validatedFields.success) {
+    return {
+      errors: validatedFields.error.flatten().fieldErrors,
+      message: "Erro na validação dos campos.",
+    };
   }
 
   try {
+    const data = validatedFields.data as unknown as Prisma.DoctorUpdateInput;
+
     await prisma.doctor.update({
-      where: { id }, // AQUI ESTÁ O SEGREDO: Busca pelo ID
-      data: result.data, // Atualiza com os novos dados
+      where: { id },
+      data,
     });
   } catch (error) {
-    console.error("Erro ao atualizar:", error);
-    return { success: false, error: "Erro ao atualizar no banco." };
+    return { message: "Erro ao atualizar médico." };
   }
 
   revalidatePath("/medicos");
@@ -73,17 +123,16 @@ export async function deleteDoctor(id: string) {
   } catch (error) {
     return { success: false, error: "Erro ao excluir." };
   }
-
-  // Atualiza a lista para o médico sumir da tela imediatamente
   revalidatePath("/medicos");
 }
+
+// --- ACTIONS DE LOGIN/LOGOUT ---
 
 export async function authenticate(
   prevState: string | undefined,
   formData: FormData
 ) {
   try {
-    // Tenta fazer o login usando o provider 'credentials'
     await signIn("credentials", formData);
   } catch (error) {
     if (error instanceof AuthError) {
@@ -94,11 +143,47 @@ export async function authenticate(
           return "Algo deu errado. Tente novamente.";
       }
     }
-    // O NextAuth lança um erro para redirecionar, precisamos deixar passar
     throw error;
   }
 }
 
 export async function handleLogout() {
   await signOut({ redirectTo: "/login" });
+}
+
+// --- ACTION DE NOVO USUÁRIO ---
+
+export async function createUser(prevState: State, formData: FormData) {
+  const validatedFields = CreateUserSchema.safeParse({
+    name: formData.get("name"),
+    email: formData.get("email"),
+    password: formData.get("password"),
+  });
+
+  if (!validatedFields.success) {
+    return {
+      errors: validatedFields.error.flatten().fieldErrors,
+      message: "Erro na validação dos campos.",
+    };
+  }
+
+  const { name, email, password } = validatedFields.data;
+
+  try {
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Criação manual garantindo que os campos batem com o banco
+    await prisma.user.create({
+      data: {
+        name,
+        email,
+        password: hashedPassword,
+      }
+    });
+  } catch (error) {
+    return { message: "Erro ao criar usuário. Talvez o email já exista." };
+  }
+
+  revalidatePath("/membros");
+  redirect("/membros");
 }

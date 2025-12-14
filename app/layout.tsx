@@ -39,14 +39,22 @@ export default async function RootLayout({
 
               {/* Menu da Direita */}
               <div className="hidden md:flex items-center space-x-4">
-                {/* Se estiver logado, mostra o botão Médicos */}
+                {/* Se estiver logado, mostra o botão Médicos */}               
                 {user && (
-                  <Link
-                    href="/medicos"
-                    className="hover:bg-blue-800 px-3 py-2 rounded-md text-sm font-medium transition-colors"
-                  >
-                    Médicos
-                  </Link>
+                  <>
+                    <Link
+                      href="/medicos"
+                      className="hover:bg-blue-800 px-3 py-2 rounded-md text-sm font-medium transition-colors"
+                    >
+                      Médicos
+                    </Link>
+                    <Link 
+                      href="/membros" // <--- MUDANÇA AQUI
+                      className="hover:bg-blue-800 px-3 py-2 rounded-md text-sm font-medium transition-colors"
+                    >
+                      Membros
+                    </Link>
+                  </>   
                 )}
 
                 {/* ÁREA DINÂMICA DE USUÁRIO */}
