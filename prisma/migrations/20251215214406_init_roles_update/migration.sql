@@ -1,5 +1,5 @@
 -- CreateEnum
-CREATE TYPE "UserRole" AS ENUM ('ADMIN', 'MEMBER', 'VIEWER');
+CREATE TYPE "UserRole" AS ENUM ('ADMIN', 'MEMBER', 'GVT');
 
 -- CreateEnum
 CREATE TYPE "ContactType" AS ENUM ('NEW_CONTACT', 'UPDATE_INFO');
@@ -13,10 +13,13 @@ CREATE TYPE "Gender" AS ENUM ('MALE', 'FEMALE');
 -- CreateTable
 CREATE TABLE "User" (
     "id" TEXT NOT NULL,
-    "email" TEXT NOT NULL,
-    "name" TEXT NOT NULL,
-    "role" "UserRole" NOT NULL DEFAULT 'MEMBER',
+    "name" TEXT,
+    "email" TEXT,
+    "password" TEXT,
+    "role" "UserRole" NOT NULL DEFAULT 'GVT',
+    "mustChangePassword" BOOLEAN NOT NULL DEFAULT true,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "User_pkey" PRIMARY KEY ("id")
 );
@@ -40,7 +43,9 @@ CREATE TABLE "Doctor" (
     "specialty1" TEXT NOT NULL,
     "specialty2" TEXT,
     "specialty3" TEXT,
-    "subSpecialties" TEXT,
+    "subSpecialties1" TEXT,
+    "subSpecialties2" TEXT,
+    "subSpecialties3" TEXT,
     "acceptsAdult" BOOLEAN NOT NULL DEFAULT false,
     "acceptsChild" BOOLEAN NOT NULL DEFAULT false,
     "acceptsNewborn" BOOLEAN NOT NULL DEFAULT false,

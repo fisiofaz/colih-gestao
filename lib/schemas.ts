@@ -1,6 +1,14 @@
 // lib/schemas.ts
 import { z } from "zod";
 
+export const userSchema = z.object({
+  name: z.string().min(2, "Nome obrigatório"),
+  email: z.string().email("E-mail inválido"),
+  role: z.enum(["ADMIN", "COLIH", "GVT"], {
+    errorMap: () => ({ message: "Selecione um nível de permissão válido" }),
+  }),
+});
+
 // Aqui definimos as regras de validação baseadas no PDF
 export const doctorSchema = z.object({
   // Parte 1 e 2: Dados Pessoais
@@ -39,3 +47,4 @@ export const doctorSchema = z.object({
 
 // Exportamos o "Tipo" para o TypeScript usar no formulário
 export type DoctorFormData = z.infer<typeof doctorSchema>;
+export type UserFormData = z.infer<typeof userSchema>;

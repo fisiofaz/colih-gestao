@@ -13,7 +13,7 @@ export const GENDER_LABELS = {
 
 // Tradução dos Papéis de Usuário
 export const USER_ROLE_LABELS = {
-  ADMIN: "Administrador",
-  MEMBER: "Membro da Colih",
-  VIEWER: "Visualizador",
+  ADMIN: "Administrador do Sistema",
+  MEMBER: "Membro da Colih (Acesso Total",
+  GVT: "Membro do GVT (Acesso Restrito)",
 };

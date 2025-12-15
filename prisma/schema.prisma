@@ -11,7 +11,7 @@ datasource db {
 enum UserRole {
   ADMIN
   MEMBER
-  VIEWER
+  GVT
 }
 
 enum ContactType {
@@ -36,7 +36,7 @@ model User {
   name          String?
   email         String?   @unique
   password      String?
-  role          String    @default("USER")
+  role          UserRole  @default(GVT)
 
   mustChangePassword Boolean @default(true)
   
@@ -70,10 +70,12 @@ model Doctor {
 
   
   // Parte 3: Dados Médicos
-  specialty1      String    // [cite: 35] - Obrigatório ter pelo menos uma
-  specialty2      String?   // [cite: 36]
-  specialty3      String?   // [cite: 37]
-  subSpecialties  String?   // [cite: 38] - Podemos guardar como texto ou criar outra tabela depois
+  specialty1      String    //  - Obrigatório ter pelo menos uma
+  specialty2      String?   
+  specialty3      String?   
+  subSpecialties1  String?  //  Podemos guardar como texto ou criar outra tabela depois
+  subSpecialties2  String? 
+  subSpecialties3  String?
   
   // Tipos de pacientes [cite: 39-42]
   acceptsAdult    Boolean @default(false)
@@ -81,7 +83,7 @@ model Doctor {
   acceptsNewborn  Boolean @default(false)
 
   // Controle do Sistema
-  notes           String?   // [cite: 11, 43]
+  notes           String?   
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
   

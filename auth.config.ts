@@ -10,16 +10,25 @@ export const authConfig = {
 
       // AQUI ESTAVA O ERRO EM VERMELHO
       // Trocamos o 'any' por uma definição específica
-      const user = auth?.user as { mustChangePassword?: boolean } | undefined;
+      const user = auth?.user as
+        | {
+            role?: string;
+            mustChangePassword?: boolean;
+          }
+        | undefined;
       const mustChangePassword = user?.mustChangePassword;
 
-      const isOnDashboard =
-        nextUrl.pathname === "/" ||
-        nextUrl.pathname.startsWith("/medicos") ||
-        nextUrl.pathname.startsWith("/membros");
+      // Rotas
+      const isOnDashboard = nextUrl.pathname === "/";
+
+      // Separamos a rota de médicos para aplicar regra específica
+      const isOnMedicos = nextUrl.pathname.startsWith("/medicos");
+
+      const isOnMembros = nextUrl.pathname.startsWith("/membros");
       const isOnChangePassword = nextUrl.pathname === "/trocar-senha";
       const isOnLogin = nextUrl.pathname.startsWith("/login");
 
+      // --- REGRAS DE SEGURANÇA ---
       // 1. Se precisa trocar a senha
       if (isLoggedIn && mustChangePassword) {
         if (isOnChangePassword) return true;
@@ -31,11 +40,19 @@ export const authConfig = {
         return Response.redirect(new URL("/", nextUrl));
       }
 
-      // 3. Lógica padrão de proteção
-      if (isOnDashboard) {
+      // 3. REGRA NOVA: GVT NÃO acessa Médicos
+      if (isLoggedIn && isOnMedicos && user?.role === "GVT") {
+        return Response.redirect(new URL("/", nextUrl));
+      }
+
+      // 4. Lógica padrão de proteção (Dashboard, Médicos e Membros)
+      if (isOnDashboard || isOnMedicos || isOnMembros) {
         if (isLoggedIn) return true;
-        return false;
-      } else if (isLoggedIn && isOnLogin) {
+        return false; // Redireciona para login
+      }
+
+      // 5. Se já está logado e tenta ir pro login
+      else if (isLoggedIn && isOnLogin) {
         return Response.redirect(new URL("/", nextUrl));
       }
 

@@ -7,10 +7,10 @@ import { z } from "zod";
 import * as bcrypt from "bcryptjs";
 import { auth, signIn, signOut } from "@/auth";
 import { AuthError } from "next-auth";
-import { Prisma } from "@prisma/client";
+import { Prisma, DoctorType } from "@prisma/client";
+import { doctorSchema } from "@/lib/schemas";
 
 // --- TIPO GLOBAL PARA O ESTADO DOS FORMULÁRIOS ---
-// Isso substitui o 'any' e remove o erro do prevState
 export type State = {
   errors?: {
     [key: string]: string[];
@@ -19,20 +19,7 @@ export type State = {
 } | null;
 
 // --- SCHEMAS DE VALIDAÇÃO (ZOD) ---
-
-const DoctorSchema = z.object({
-  firstName: z.string().min(1, "Nome é obrigatório"),
-  lastName: z.string().min(1, "Sobrenome é obrigatório"),
-  email: z.string().email("E-mail inválido").optional().or(z.literal("")),
-  phoneMobile: z.string().min(1, "Celular é obrigatório"),
-  city: z.string().min(1, "Cidade é obrigatória"),
-  state: z.string().length(2, "Estado deve ter 2 letras"),
-  specialty1: z.string().min(1, "Especialidade principal é obrigatória"),
-  type: z.enum(["COOPERATING", "CONSULTANT", "OTHER"]),
-  acceptsAdult: z.boolean().optional(),
-  acceptsChild: z.boolean().optional(),
-  acceptsNewborn: z.boolean().optional(),
-});
+// O DoctorSchema estamos importando de lib/schemas para manter coerência
 
 const CreateUserSchema = z.object({
   name: z.string().min(3, "Nome deve ter pelo menos 3 letras"),
@@ -40,7 +27,6 @@ const CreateUserSchema = z.object({
   password: z.string().min(6, "A senha deve ter no mínimo 6 caracteres"),
 });
 
-// Schema para validar as duas senhas
 const ChangePasswordSchema = z.object({
   password: z.string().min(6, "A nova senha deve ter no mínimo 6 caracteres"),
   confirmPassword: z.string().min(6),
@@ -49,11 +35,83 @@ const ChangePasswordSchema = z.object({
   path: ["confirmPassword"],
 });
 
-// --- ACTIONS DE MÉDICOS ---
+// =========================================================
+// 1. DASHBOARD E LEITURA
+// =========================================================
+
+export async function getDashboardData() {
+  const session = await auth();
+
+  // Se não estiver logado
+  if (!session?.user) {
+    return {
+      allowed: false,
+      userRole: null,
+      colaboradores: [],
+      consultores: [],
+    };
+  }
+
+  const role = session.user.role;
+
+  // BLOQUEIO GVT: Se for GVT, retorna listas vazias
+  if (role === "GVT") {
+    return {
+      allowed: false,
+      userRole: role,
+      colaboradores: [],
+      consultores: [],
+    };
+  }
+
+  // Se for COLIH ou ADMIN, busca tudo
+  try {
+    const [colaboradores, consultores] = await Promise.all([
+      prisma.doctor.findMany({
+        where: { type: "COOPERATING" },
+        orderBy: { firstName: "asc" },
+        take: 5,
+      }),
+      prisma.doctor.findMany({
+        where: { type: "CONSULTANT" },
+        orderBy: { firstName: "asc" },
+        take: 5,
+      }),
+    ]);
+
+    return {
+      allowed: true,
+      userRole: role,
+      colaboradores,
+      consultores,
+    };
+  } catch (error) {
+    console.error("Erro ao buscar dashboard:", error);
+    return {
+      allowed: true,
+      userRole: role,
+      colaboradores: [],
+      consultores: [],
+    };
+  }
+}
+
+// =========================================================
+// 2. AÇÕES DE MÉDICOS (CUD)
+// =========================================================
 
 export async function createDoctor(prevState: State, formData: FormData) {
+  // 1. Segurança: Verificar Sessão
+  const session = await auth();
+  if (!session?.user?.id || session.user.role === "GVT") {
+    return {
+      message: "Permissão negada. Apenas membros COLIH podem cadastrar.",
+    };
+  }
+
   const rawFormData = Object.fromEntries(formData.entries());
 
+  // Tratamento dos Checkboxes (HTML envia "on" ou nada)
   const dataToValidate = {
     ...rawFormData,
     acceptsAdult: rawFormData.acceptsAdult === "on",
@@ -61,7 +119,8 @@ export async function createDoctor(prevState: State, formData: FormData) {
     acceptsNewborn: rawFormData.acceptsNewborn === "on",
   };
 
-  const validatedFields = DoctorSchema.safeParse(dataToValidate);
+  // 2. Validação com Zod
+  const validatedFields = doctorSchema.safeParse(dataToValidate);
 
   if (!validatedFields.success) {
     return {
@@ -71,16 +130,24 @@ export async function createDoctor(prevState: State, formData: FormData) {
   }
 
   try {
-    // O 'unknown' serve para 'limpar' o tipo do Zod antes de afirmar que é um Input do Prisma
-    const data = validatedFields.data as unknown as Prisma.DoctorCreateInput;
+    const { type, ...rest } = validatedFields.data;
 
-    await prisma.doctor.create({ data });
+    // 3. Inserção no Banco (Incluindo createdById)
+    await prisma.doctor.create({
+      data: {
+        ...rest,
+        type: type as DoctorType,
+        createdById: session.user.id,
+      },
+    });
   } catch (error) {
+    console.error(error);
     return {
       message: "Erro no Banco de Dados: Falha ao criar médico.",
     };
   }
 
+  revalidatePath("/");
   revalidatePath("/medicos");
   redirect("/medicos");
 }
@@ -90,6 +157,12 @@ export async function updateDoctor(
   prevState: State,
   formData: FormData
 ) {
+  // Segurança
+  const session = await auth();
+  if (!session?.user || session.user.role === "GVT") {
+    return { message: "Acesso negado." };
+  }
+
   const rawFormData = Object.fromEntries(formData.entries());
 
   const dataToValidate = {
@@ -99,7 +172,7 @@ export async function updateDoctor(
     acceptsNewborn: rawFormData.acceptsNewborn === "on",
   };
 
-  const validatedFields = DoctorSchema.safeParse(dataToValidate);
+  const validatedFields = doctorSchema.safeParse(dataToValidate);
 
   if (!validatedFields.success) {
     return {
@@ -109,21 +182,33 @@ export async function updateDoctor(
   }
 
   try {
-    const data = validatedFields.data as unknown as Prisma.DoctorUpdateInput;
+    const { type, ...rest } = validatedFields.data;
+
+    // Convertemos para o tipo correto do Prisma
+    const dataUpdate: Prisma.DoctorUpdateInput = {
+      ...rest,
+      type: type as DoctorType,
+    };
 
     await prisma.doctor.update({
       where: { id },
-      data,
+      data: dataUpdate,
     });
   } catch (error) {
     return { message: "Erro ao atualizar médico." };
   }
 
+  revalidatePath("/");
   revalidatePath("/medicos");
   redirect("/medicos");
 }
 
 export async function deleteDoctor(id: string) {
+  const session = await auth();
+  // Proteção extra para delete
+  if (!session?.user || session.user.role === "GVT") {
+    return { success: false, error: "Acesso negado" };
+  }
   try {
     await prisma.doctor.delete({
       where: { id },
@@ -132,9 +217,12 @@ export async function deleteDoctor(id: string) {
     return { success: false, error: "Erro ao excluir." };
   }
   revalidatePath("/medicos");
+  revalidatePath("/");
 }
 
-// --- ACTIONS DE LOGIN/LOGOUT ---
+// =========================================================
+// 3. AÇÕES DE LOGIN E USUÁRIOS
+// =========================================================
 
 export async function authenticate(
   prevState: string | undefined,
@@ -158,8 +246,6 @@ export async function authenticate(
 export async function handleLogout() {
   await signOut({ redirectTo: "/login" });
 }
-
-// --- ACTION DE NOVO USUÁRIO ---
 
 export async function createUser(prevState: State, formData: FormData) {
   const validatedFields = CreateUserSchema.safeParse({
@@ -187,6 +273,7 @@ export async function createUser(prevState: State, formData: FormData) {
         email,
         password: hashedPassword,
         mustChangePassword: true,
+        role: "GVT",
       },
     });
   } catch (error) {
