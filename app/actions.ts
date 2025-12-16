@@ -7,8 +7,9 @@ import { z } from "zod";
 import * as bcrypt from "bcryptjs";
 import { auth, signIn, signOut } from "@/auth";
 import { AuthError } from "next-auth";
-import { Prisma, DoctorType } from "@prisma/client";
+import { Prisma, DoctorType, UserRole } from "@prisma/client";
 import { doctorSchema } from "@/lib/schemas";
+
 
 // --- TIPO GLOBAL PARA O ESTADO DOS FORMULÁRIOS ---
 export type State = {
@@ -40,58 +41,71 @@ const ChangePasswordSchema = z.object({
 // =========================================================
 
 export async function getDashboardData() {
+ 
   const session = await auth();
 
-  // Se não estiver logado
   if (!session?.user) {
     return {
       allowed: false,
       userRole: null,
       colaboradores: [],
       consultores: [],
+      stats: null,
     };
   }
 
   const role = session.user.role;
+  const isGVT = role === "GVT";
 
-  // BLOQUEIO GVT: Se for GVT, retorna listas vazias
-  if (role === "GVT") {
+  try {
+    // Buscamos tudo em paralelo para ser rápido
+    const [colaboradores, consultores, totalMembros, membrosCOLIH, membrosGVT] =
+      await Promise.all([
+        // 1. Médicos (Só buscamos se NÃO for GVT para economizar banco)
+        !isGVT
+          ? prisma.doctor.findMany({
+              where: { type: "COOPERATING" },
+              orderBy: { firstName: "asc" },
+              take: 5,
+            })
+          : Promise.resolve([]),
+
+        !isGVT
+          ? prisma.doctor.findMany({
+              where: { type: "CONSULTANT" },
+              orderBy: { firstName: "asc" },
+              take: 5,
+            })
+          : Promise.resolve([]),
+
+        // 2. Estatísticas de Membros
+        prisma.user.count(),
+        prisma.user.count({ where: { role: UserRole.COLIH } }),
+        prisma.user.count({ where: { role: UserRole.GVT } }),
+      ]);
+
+    return {
+      allowed: !isGVT, // Define se pode ver médicos
+      userRole: role,
+      colaboradores,
+      consultores,
+      stats: {
+        medicos: colaboradores.length + consultores.length, // Apenas dos listados/totais
+        membros: {
+          total: totalMembros,
+          colih: membrosCOLIH,
+          gvt: membrosGVT,
+        },
+      },
+    };
+  } catch (error) {
+    console.error("Erro no dashboard:", error);
     return {
       allowed: false,
       userRole: role,
       colaboradores: [],
       consultores: [],
-    };
-  }
-
-  // Se for COLIH ou ADMIN, busca tudo
-  try {
-    const [colaboradores, consultores] = await Promise.all([
-      prisma.doctor.findMany({
-        where: { type: "COOPERATING" },
-        orderBy: { firstName: "asc" },
-        take: 5,
-      }),
-      prisma.doctor.findMany({
-        where: { type: "CONSULTANT" },
-        orderBy: { firstName: "asc" },
-        take: 5,
-      }),
-    ]);
-
-    return {
-      allowed: true,
-      userRole: role,
-      colaboradores,
-      consultores,
-    };
-  } catch (error) {
-    console.error("Erro ao buscar dashboard:", error);
-    return {
-      allowed: true,
-      userRole: role,
-      colaboradores: [],
-      consultores: [],
+      stats: null,
     };
   }
 }

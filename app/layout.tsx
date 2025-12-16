@@ -17,8 +17,12 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // Buscamos a sessão para saber quem está logado e qual o cargo
   const session = await auth();
   const user = session?.user;
+
+  // Verificamos se é GVT para esconder menus
+  const isGVT = user?.role === "GVT";
 
   return (
     <html lang="pt-BR">
@@ -39,22 +43,26 @@ export default async function RootLayout({
 
               {/* Menu da Direita */}
               <div className="hidden md:flex items-center space-x-4">
-                {/* Se estiver logado, mostra o botão Médicos */}               
+                {/* Se estiver logado, mostra o botão Médicos */}
                 {user && (
                   <>
+                    {/* REGRA: Só mostra Médicos se NÃO for GVT */}
+                    {!isGVT && (
+                      <Link
+                        href="/medicos"
+                        className="hover:bg-blue-800 px-3 py-2 rounded-md text-sm font-medium transition-colors"
+                      >
+                        Médicos
+                      </Link>
+                    )}
+                    {/* Membros todos podem ver (mas com permissões diferentes lá dentro) */}
                     <Link
-                      href="/medicos"
-                      className="hover:bg-blue-800 px-3 py-2 rounded-md text-sm font-medium transition-colors"
-                    >
-                      Médicos
-                    </Link>
-                    <Link 
-                      href="/membros" // <--- MUDANÇA AQUI
+                      href="/membros"
                       className="hover:bg-blue-800 px-3 py-2 rounded-md text-sm font-medium transition-colors"
                     >
                       Membros
                     </Link>
-                  </>   
+                  </>
                 )}
 
                 {/* ÁREA DINÂMICA DE USUÁRIO */}
@@ -64,7 +72,9 @@ export default async function RootLayout({
                       <p className="text-sm font-semibold leading-none">
                         {user.name}
                       </p>
-                      <p className="text-xs text-blue-300">Administrador</p>
+                      <p className="text-xs text-blue-300 font-mono mt-1">
+                        {user.role}
+                      </p>
                     </div>
 
                     <form action={handleLogout}>
