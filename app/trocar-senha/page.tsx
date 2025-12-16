@@ -1,11 +1,11 @@
 "use client";
 
-import { useActionState } from "react";
+import { useFormState } from "react-dom";
 import { updatePassword } from "@/app/actions"; // Importe a ação que criamos
 import { handleLogout } from "@/app/actions"; // Para caso a pessoa queira desistir
 
 export default function ChangePasswordPage() {
-  const [state, dispatch, isPending] = useActionState(updatePassword, null);
+  const [state, dispatch, isPending] = useFormState(updatePassword, null);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-100 p-4">

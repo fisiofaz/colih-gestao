@@ -26,6 +26,7 @@ const CreateUserSchema = z.object({
   name: z.string().min(3, "Nome deve ter pelo menos 3 letras"),
   email: z.string().email("Email inválido"),
   password: z.string().min(6, "A senha deve ter no mínimo 6 caracteres"),
+  role: z.enum(["COLIH", "GVT"]),
 });
 
 const ChangePasswordSchema = z.object({
@@ -262,10 +263,17 @@ export async function handleLogout() {
 }
 
 export async function createUser(prevState: State, formData: FormData) {
+  // Segurança: Apenas quem já é COLIH ou ADMIN pode criar outros usuários
+  const session = await auth();
+  if (session?.user?.role === "GVT") {
+    return { message: "Você não tem permissão para criar novos usuários." };
+  }
+
   const validatedFields = CreateUserSchema.safeParse({
     name: formData.get("name"),
     email: formData.get("email"),
     password: formData.get("password"),
+    role: formData.get("role"),
   });
 
   if (!validatedFields.success) {
@@ -275,7 +283,7 @@ export async function createUser(prevState: State, formData: FormData) {
     };
   }
 
-  const { name, email, password } = validatedFields.data;
+  const { name, email, password, role } = validatedFields.data;
 
   try {
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -287,7 +295,7 @@ export async function createUser(prevState: State, formData: FormData) {
         email,
         password: hashedPassword,
         mustChangePassword: true,
-        role: "GVT",
+        role: role as UserRole,
       },
     });
   } catch (error) {

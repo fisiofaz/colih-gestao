@@ -1,11 +1,11 @@
 "use client";
 
-import { useActionState } from "react";
+import { useFormState } from "react-dom";
 import { createUser } from "@/app/actions";
 import Link from "next/link";
 
 export default function NewMemberPage() {
-  const [state, dispatch, isPending] = useActionState(createUser, null);
+  const [state, dispatch, isPending] = useFormState(createUser, null);
 
   return (
     <div className="min-h-screen bg-slate-50 p-8 flex justify-center">
@@ -49,6 +49,37 @@ export default function NewMemberPage() {
               />
               <p className="text-red-500 text-xs mt-1">
                 {state?.errors?.email}
+              </p>
+            </div>
+
+            {/* PERMISSÃO (ROLE) */}
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">
+                Nível de Permissão
+              </label>
+              <div className="relative">
+                <select
+                  name="role"
+                  defaultValue="GVT"
+                  className="w-full rounded-md border border-slate-300 p-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none appearance-none bg-white"
+                >
+                  <option value="GVT">Membro GVT (Acesso Restrito)</option>
+                  <option value="COLIH">Membro COLIH (Gestão Total)</option>
+                </select>
+                {/* Ícone de seta para ficar bonito */}
+                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
+                  <svg
+                    className="fill-current h-4 w-4"
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 20 20"
+                  >
+                    <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" />
+                  </svg>
+                </div>
+              </div>
+              <p className="text-xs text-slate-400 mt-1">
+                Membros GVT veem apenas a lista de membros. Membros COLIH
+                gerenciam médicos.
               </p>
             </div>
 
