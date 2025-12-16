@@ -4,6 +4,7 @@ import "./globals.css";
 import Link from "next/link";
 import { auth } from "@/auth";
 import { handleLogout } from "./actions";
+import { Toaster } from "sonner";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -100,6 +101,7 @@ export default async function RootLayout({
         </nav>
 
         {children}
+        <Toaster position="top-right" richColors expand={true} />
       </body>
     </html>
   );

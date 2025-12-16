@@ -2,6 +2,7 @@
 
 import { deleteDoctor } from "@/app/actions";
 import { useState } from "react";
+import { toast } from "sonner";
 
 export function DeleteButton({ id, name }: { id: string; name: string }) {
   const [isDeleting, setIsDeleting] = useState(false);
@@ -14,6 +15,7 @@ export function DeleteButton({ id, name }: { id: string; name: string }) {
 
     if (confirmed) {
       setIsDeleting(true);
+      const toastId = toast.loading("Excluindo registro...");
 
       try {
         // 2. Chamamos a action e esperamos a resposta
@@ -21,13 +23,16 @@ export function DeleteButton({ id, name }: { id: string; name: string }) {
         const response = await deleteDoctor(id);
 
         // 3. Se o servidor retornou um objeto com erro (ex: bloqueio GVP)
-        if (response && typeof response === "object" && "error" in response) {
-          alert(response.error); // "Acesso negado"
-        }
+       if (response && typeof response === "object" && "error" in response) {
+         toast.error(response.error, { id: toastId }); // Mostra erro do servidor (ex: GVP)
+         setIsDeleting(false);
+         return;
+       }
+       toast.success("Médico excluído com sucesso", { id: toastId });
 
         // Se deu certo, o revalidatePath no servidor atualiza a lista automaticamente
       } catch (error) {
-        alert("Ocorreu um erro ao tentar excluir.");
+        toast.error("Ocorreu um erro ao tentar excluir.", { id: toastId });
       } finally {
         setIsDeleting(false);
       }

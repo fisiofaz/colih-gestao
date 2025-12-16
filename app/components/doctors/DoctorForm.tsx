@@ -6,7 +6,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { doctorSchema, DoctorFormData } from "@/lib/schemas";
 import { createDoctor, updateDoctor } from "@/app/actions"; 
 import { useState } from "react";
-import { Doctor } from "@prisma/client"; // Tipo do Prisma
+import { Doctor } from "@prisma/client";
+import { toast } from "sonner";
 
 // Interface das Props: aceita um médico opcional
 interface DoctorFormProps {
@@ -55,6 +56,8 @@ export default function DoctorForm({ doctor }: DoctorFormProps) {
   async function onSubmit(data: DoctorFormData) {
     setIsSubmitting(true);
 
+    const toastId = toast.loading("Salvando informações...");
+
     // Converte JSON para FormData (Necessário para Server Actions)
     const formData = new FormData();
     Object.entries(data).forEach(([key, value]) => {
@@ -67,16 +70,18 @@ export default function DoctorForm({ doctor }: DoctorFormProps) {
 
     try {
       if (isEditing && doctor) {
-        // MODO EDIÇÃO: Chama update passando ID
         await updateDoctor(doctor.id, null, formData);
+        // Sucesso na Edição
+        toast.success("Médico atualizado com sucesso!", { id: toastId });
       } else {
-        // MODO CRIAÇÃO: Chama create
         await createDoctor(null, formData);
+        // Sucesso na Criação
+        toast.success("Novo médico cadastrado!", { id: toastId });
       }
       // O redirect acontece no server side
     } catch (error) {
       console.error(error);
-      alert(`Erro ao ${isEditing ? "atualizar" : "cadastrar"} médico.`);
+      toast.error("Erro ao salvar. Verifique os dados.", { id: toastId });
       setIsSubmitting(false);
     }
   }
