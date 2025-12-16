@@ -45,8 +45,26 @@ export default function EditDoctorForm({ doctor }: EditFormProps) {
 
   async function onSubmit(data: DoctorFormData) {
     setIsSubmitting(true);
-    // Chamamos o UPDATE passando o ID do médico que estamos editando
-    await updateDoctor(doctor.id, data);
+    const formData = new FormData();
+
+    Object.entries(data).forEach(([key, value]) => {
+      // O backend espera "on" para checkboxes marcados
+      if (typeof value === "boolean") {
+        if (value) formData.append(key, "on");
+      } else if (value !== undefined && value !== null) {
+        formData.append(key, String(value));
+      }
+    });
+
+    try {
+      // null é o prevState que a action espera
+      await updateDoctor(doctor.id, null, formData);
+    } catch (error) {
+      console.error(error);
+      alert("Erro ao atualizar.");
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   return (
@@ -57,12 +75,19 @@ export default function EditDoctorForm({ doctor }: EditFormProps) {
       {/* SEÇÃO 1: TIPO E NOME */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="space-y-1">
-          <label className="text-sm font-medium text-slate-700">Tipo</label>
-          <select {...register("type")} className="w-full input-padrao">
-            <option value="COOPERATING">Médico Cooperador</option>
-            <option value="CONSULTANT">Médico Consultor</option>
-            <option value="OTHER">Outro</option>
-          </select>
+          <label className="text-sm font-medium text-slate-700">
+            Tipo de Atuação
+          </label>
+          <div className="relative">
+            <select
+              {...register("type")}
+              className="w-full input-padrao bg-blue-50 border-blue-200 text-blue-800 font-semibold"
+            >
+              <option value="COOPERATING">Médico Cooperador</option>
+              <option value="CONSULTANT">Médico Consultor</option>
+              <option value="OTHER">Outro</option>
+            </select>
+          </div>
         </div>
         <div className="space-y-1">
           <label className="text-sm font-medium text-slate-700">
@@ -70,9 +95,7 @@ export default function EditDoctorForm({ doctor }: EditFormProps) {
           </label>
           <input {...register("firstName")} className="w-full input-padrao" />
           {errors.firstName && (
-            <p className="text-red-500 text-xs">
-              {String(errors.firstName.message)}
-            </p>
+            <p className="text-red-500 text-xs">{errors.firstName.message}</p>
           )}
         </div>
         <div className="space-y-1">
@@ -81,9 +104,7 @@ export default function EditDoctorForm({ doctor }: EditFormProps) {
           </label>
           <input {...register("lastName")} className="w-full input-padrao" />
           {errors.lastName && (
-            <p className="text-red-500 text-xs">
-              {String(errors.lastName.message)}
-            </p>
+            <p className="text-red-500 text-xs">{errors.lastName.message}</p>
           )}
         </div>
       </div>
@@ -100,10 +121,24 @@ export default function EditDoctorForm({ doctor }: EditFormProps) {
         <div className="space-y-1">
           <label className="text-sm font-medium text-slate-700">E-mail</label>
           <input {...register("email")} className="w-full input-padrao" />
+          {errors.email && (
+            <p className="text-red-500 text-xs">{errors.email.message}</p>
+          )}
+        </div>
+        <div className="space-y-1">
+          <label className="text-sm font-medium text-slate-700">Celular</label>
+          <input
+            {...register("phoneMobile")}
+            className="w-full input-padrao"
+            placeholder="(00) 00000-0000"
+          />
+          {errors.phoneMobile && (
+            <p className="text-red-500 text-xs">{errors.phoneMobile.message}</p>
+          )}
         </div>
       </div>
 
-      {/* SEÇÃO 3: ENDEREÇO RÁPIDO */}
+      {/* SEÇÃO 3: ENDEREÇO */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <input
           {...register("city")}
@@ -115,33 +150,69 @@ export default function EditDoctorForm({ doctor }: EditFormProps) {
           className="w-full input-padrao"
           placeholder="Endereço"
         />
-        <input
-          {...register("state")}
-          className="w-full input-padrao"
-          placeholder="UF"
-          maxLength={2}
-        />
-        <input
-          {...register("zipCode")}
-          className="w-full input-padrao"
-          placeholder="CEP"
-        />
+        <div className="grid grid-cols-2 gap-4">
+          <input
+            {...register("state")}
+            className="w-full input-padrao"
+            placeholder="UF"
+            maxLength={2}
+          />
+          <input
+            {...register("zipCode")}
+            className="w-full input-padrao"
+            placeholder="CEP"
+          />
+        </div>
+        {errors.city && (
+          <p className="text-red-500 text-xs">{errors.city.message}</p>
+        )}
       </div>
 
       {/* SEÇÃO 4: ESPECIALIDADES */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div>
           <label className="text-sm font-medium text-slate-700">
-            Especialidade
+            Especialidade Principal
           </label>
           <input {...register("specialty1")} className="w-full input-padrao" />
+          {errors.specialty1 && (
+            <p className="text-red-500 text-xs">{errors.specialty1.message}</p>
+          )}
         </div>
         <div>
           <label className="text-sm font-medium text-slate-700">
-            Subespecialidade
+            Subespecialidade (Opcional)
           </label>
           <input {...register("specialty2")} className="w-full input-padrao" />
         </div>
+      </div>
+
+      {/* SEÇÃO 5: CHECKBOXES */}
+      <div className="flex gap-6 pt-2">
+        <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
+          <input
+            type="checkbox"
+            {...register("acceptsAdult")}
+            className="rounded text-blue-600"
+          />
+          Atende Adulto
+        </label>
+        <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
+          <input
+            type="checkbox"
+            {...register("acceptsChild")}
+            className="rounded text-blue-600"
+          />
+          Atende Criança
+        </label>
+        <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
+          <input
+            type="checkbox"
+            {...register("acceptsNewborn")}
+            className="rounded text-blue-600"
+          />
+          Atende Recém-nascido
+        </label>
       </div>
 
       <div className="pt-6 border-t border-slate-100 flex justify-end gap-3">

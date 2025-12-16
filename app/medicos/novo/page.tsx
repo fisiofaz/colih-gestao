@@ -10,9 +10,6 @@ import { useState } from "react";
 export default function NovoMedicoPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // MUDANÇA 1: Removemos o <DoctorFormData> daqui.
-  // Deixamos o 'zodResolver' ensinar ao formulário quais são os campos.
-  // Isso elimina o erro vermelho no 'resolver'.
   const {
     register,
     handleSubmit,
@@ -22,13 +19,37 @@ export default function NovoMedicoPage() {
     defaultValues: {
       country: "Brasil",
       acceptsAdult: true,
+      type: "COOPERATING", // Vamos deixar um padrão para evitar esquecimento
     },
   });
 
-  // MUDANÇA 2: Dizemos explicitamente que 'data' é do tipo DoctorFormData
+  // MUDANÇA CRÍTICA AQUI:
   async function onSubmit(data: DoctorFormData) {
     setIsSubmitting(true);
-    await createDoctor(data);
+
+    // 1. Convertendo o JSON do formulário para FormData
+    // Isso é necessário porque nossa Server Action espera FormData
+    const formData = new FormData();
+
+    Object.entries(data).forEach(([key, value]) => {
+      // Checkboxes precisam de tratamento especial
+      if (typeof value === "boolean") {
+        if (value) formData.append(key, "on");
+      }
+      // Ignora campos vazios ou indefinidos
+      else if (value !== undefined && value !== null && value !== "") {
+        formData.append(key, String(value));
+      }
+    });
+
+    try {
+      // 2. Chamamos a ação passando 'null' como prevState
+      await createDoctor(null, formData);
+      // O redirect acontece no servidor, então não precisamos fazer nada aqui
+    } catch (error) {
+      alert("Erro ao criar médico. Tente novamente.");
+      setIsSubmitting(false);
+    }
   }
 
   return (
@@ -47,25 +68,32 @@ export default function NovoMedicoPage() {
         </div>
 
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-8">
-          {/* MUDANÇA 3: O erro no handleSubmit deve sumir agora que o useForm está alinhado */}
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
             {/* --- SEÇÃO 1: TIPO E NOME --- */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {/* CAMPO DE TIPO (ESSENCIAL PARA O DASHBOARD) */}
               <div className="space-y-1">
                 <label className="text-sm font-medium text-slate-700">
                   Tipo *
                 </label>
-                <select {...register("type")} className="w-full input-padrao">
-                  <option value="">Selecione...</option>
-                  <option value="COOPERATING">Médico Cooperador</option>
-                  <option value="CONSULTANT">Médico Consultor</option>
-                  <option value="OTHER">Outro</option>
-                </select>
+                <div className="relative">
+                  <select
+                    {...register("type")}
+                    className="w-full input-padrao bg-blue-50 border-blue-200 text-blue-800 font-semibold cursor-pointer"
+                  >
+                    <option value="COOPERATING">Médico Cooperador</option>
+                    <option value="CONSULTANT">Médico Consultor</option>
+                    <option value="OTHER">Outro</option>
+                  </select>
+                </div>
                 {errors.type && (
                   <p className="text-red-500 text-xs">
                     {String(errors.type.message)}
                   </p>
                 )}
+                <p className="text-[10px] text-slate-400 mt-1">
+                  Define em qual coluna da Home o médico aparecerá.
+                </p>
               </div>
 
               <div className="space-y-1">
@@ -108,7 +136,6 @@ export default function NovoMedicoPage() {
                   Sexo *
                 </label>
                 <select {...register("gender")} className="w-full input-padrao">
-                  <option value="">Selecione...</option>
                   <option value="MALE">Masculino</option>
                   <option value="FEMALE">Feminino</option>
                 </select>
@@ -204,7 +231,7 @@ export default function NovoMedicoPage() {
                 </div>
               </div>
 
-              <div className="mt-4 flex gap-6">
+              <div className="mt-4 flex gap-6 p-4 bg-slate-50 rounded-lg">
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input
                     type="checkbox"
@@ -236,7 +263,7 @@ export default function NovoMedicoPage() {
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="px-6 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-sm transition-colors disabled:opacity-50"
+                className="px-6 py-2 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-sm transition-colors disabled:opacity-50"
               >
                 {isSubmitting ? "Salvando..." : "Salvar Médico"}
               </button>
