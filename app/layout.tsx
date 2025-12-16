@@ -21,8 +21,8 @@ export default async function RootLayout({
   const session = await auth();
   const user = session?.user;
 
-  // Verificamos se é GVT para esconder menus
-  const isGVT = user?.role === "GVT";
+  // Verificamos se é GVP para esconder menus
+  const isGVP = user?.role === "GVP";
 
   return (
     <html lang="pt-BR">
@@ -46,8 +46,8 @@ export default async function RootLayout({
                 {/* Se estiver logado, mostra o botão Médicos */}
                 {user && (
                   <>
-                    {/* REGRA: Só mostra Médicos se NÃO for GVT */}
-                    {!isGVT && (
+                    {/* REGRA: Só mostra Médicos se NÃO for GVP */}
+                    {!isGVP && (
                       <Link
                         href="/medicos"
                         className="hover:bg-blue-800 px-3 py-2 rounded-md text-sm font-medium transition-colors"

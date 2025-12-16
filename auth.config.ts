@@ -40,8 +40,8 @@ export const authConfig = {
         return Response.redirect(new URL("/", nextUrl));
       }
 
-      // 3. REGRA NOVA: GVT NÃO acessa Médicos
-      if (isLoggedIn && isOnMedicos && user?.role === "GVT") {
+      // 3. REGRA NOVA: GVP NÃO acessa Médicos
+      if (isLoggedIn && isOnMedicos && user?.role === "GVP") {
         return Response.redirect(new URL("/", nextUrl));
       }
 

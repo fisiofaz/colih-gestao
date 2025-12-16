@@ -60,10 +60,10 @@ export default function NewMemberPage() {
               <div className="relative">
                 <select
                   name="role"
-                  defaultValue="GVT"
+                  defaultValue="GVP"
                   className="w-full rounded-md border border-slate-300 p-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none appearance-none bg-white"
                 >
-                  <option value="GVT">Membro GVT (Acesso Restrito)</option>
+                  <option value="GVP">Membro GVP (Acesso Restrito)</option>
                   <option value="COLIH">Membro COLIH (Gestão Total)</option>
                 </select>
                 {/* Ícone de seta para ficar bonito */}
@@ -78,7 +78,7 @@ export default function NewMemberPage() {
                 </div>
               </div>
               <p className="text-xs text-slate-400 mt-1">
-                Membros GVT veem apenas a lista de membros. Membros COLIH
+                Membros GVP veem apenas a lista de membros. Membros COLIH
                 gerenciam médicos.
               </p>
             </div>

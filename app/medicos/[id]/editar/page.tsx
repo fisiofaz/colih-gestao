@@ -1,8 +1,9 @@
 // app/medicos/[id]/editar/page.tsx
 import { prisma } from "@/lib/prisma";
-import { notFound, redirect } from "next/navigation"; // Adicionado redirect
-import EditDoctorForm from "./edit-form"; // Certifique-se que o caminho está certo (pode ser ../edit-form dependendo da pasta)
-import { auth } from "@/auth"; // Importamos a autenticação
+import { notFound, redirect } from "next/navigation"; 
+import { auth } from "@/auth"; 
+import Link from "next/link";
+import DoctorForm from "@/app/components/doctors/DoctorForm";
 
 interface PageProps {
   // MUDANÇA 1: No Next.js 15, params é uma Promise
@@ -18,8 +19,8 @@ export default async function EditarMedicoPage({ params }: PageProps) {
   // Se não tá logado, tchau
   if (!session) redirect("/login");
 
-  // Se for GVT, não pode editar médico (manda pra home)
-  if (session.user?.role === "GVT") {
+  // Se for GVP, não pode editar médico (manda pra home)
+  if (session.user?.role === "GVP") {
     redirect("/");
   }
 
@@ -40,20 +41,15 @@ export default async function EditarMedicoPage({ params }: PageProps) {
   return (
     <div className="min-h-screen p-8 bg-slate-50">
       <div className="max-w-4xl mx-auto">
-        <div className="mb-8 flex justify-between items-center">
-          <h1 className="text-2xl font-bold text-slate-800">
-            Editar: {doctor.firstName} {doctor.lastName}
-          </h1>
-          <a
+        <div className="mb-8 flex items-center gap-4">
+          <Link
             href="/medicos"
-            className="text-sm text-slate-500 hover:text-blue-600"
+            className="text-slate-500 hover:text-blue-600 text-sm"
           >
-            ← Voltar para lista
-          </a>
-        </div>
-
-        {/* Passamos os dados para o formulário cliente */}
-        <EditDoctorForm doctor={doctor} />
+            ← Voltar
+          </Link>
+        </div>        
+        <DoctorForm doctor={doctor} />
       </div>
     </div>
   );

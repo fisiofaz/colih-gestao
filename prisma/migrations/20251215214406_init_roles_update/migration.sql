@@ -1,5 +1,5 @@
 -- CreateEnum
-CREATE TYPE "UserRole" AS ENUM ('ADMIN', 'MEMBER', 'GVT');
+CREATE TYPE "UserRole" AS ENUM ('ADMIN', 'MEMBER', 'GVP');
 
 -- CreateEnum
 CREATE TYPE "ContactType" AS ENUM ('NEW_CONTACT', 'UPDATE_INFO');
@@ -16,7 +16,7 @@ CREATE TABLE "User" (
     "name" TEXT,
     "email" TEXT,
     "password" TEXT,
-    "role" "UserRole" NOT NULL DEFAULT 'GVT',
+    "role" "UserRole" NOT NULL DEFAULT 'GVP',
     "mustChangePassword" BOOLEAN NOT NULL DEFAULT true,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,

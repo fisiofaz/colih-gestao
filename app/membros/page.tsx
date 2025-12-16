@@ -8,8 +8,8 @@ export default async function MembersPage() {
   const session = await auth();
   if (!session?.user) redirect("/login");
 
-  // Verificamos se o usuário atual é GVT para esconder o botão de criar
-  const isGVT = session.user.role === "GVT";
+  // Verificamos se o usuário atual é GVP para esconder o botão de criar
+  const isGVP = session.user.role === "GVP";
 
   //Busca usuários no banco
   const users = await prisma.user.findMany({
@@ -21,7 +21,7 @@ export default async function MembersPage() {
     switch (role) {
       case "COLIH":
         return "bg-purple-100 text-purple-700 ring-purple-700/10";
-      case "GVT":
+      case "GVP":
         return "bg-green-100 text-green-700 ring-green-600/20";
       case "ADMIN":
         return "bg-red-100 text-red-700 ring-red-600/10";
@@ -42,8 +42,8 @@ export default async function MembersPage() {
               Usuários com acesso ao sistema
             </p>
           </div>
-          {/* SÓ MOSTRA O BOTÃO SE NÃO FOR GVT */}
-          {!isGVT && (
+          {/* SÓ MOSTRA O BOTÃO SE NÃO FOR GVP */}
+          {!isGVP && (
             <Link
               href="/membros/novo"
               className="bg-blue-700 hover:bg-blue-800 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-sm transition-all flex items-center gap-2"

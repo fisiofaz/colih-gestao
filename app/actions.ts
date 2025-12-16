@@ -26,7 +26,7 @@ const CreateUserSchema = z.object({
   name: z.string().min(3, "Nome deve ter pelo menos 3 letras"),
   email: z.string().email("Email inválido"),
   password: z.string().min(6, "A senha deve ter no mínimo 6 caracteres"),
-  role: z.enum(["COLIH", "GVT"]),
+  role: z.enum(["COLIH", "GVP"]),
 });
 
 const ChangePasswordSchema = z.object({
@@ -56,14 +56,14 @@ export async function getDashboardData() {
   }
 
   const role = session.user.role;
-  const isGVT = role === "GVT";
+  const isGVP = role === "GVP";
 
   try {
     // Buscamos tudo em paralelo para ser rápido
-    const [colaboradores, consultores, totalMembros, membrosCOLIH, membrosGVT] =
+    const [colaboradores, consultores, totalMembros, membrosCOLIH, membrosGVP] =
       await Promise.all([
-        // 1. Médicos (Só buscamos se NÃO for GVT para economizar banco)
-        !isGVT
+        // 1. Médicos (Só buscamos se NÃO for GVP para economizar banco)
+        !isGVP
           ? prisma.doctor.findMany({
               where: { type: "COOPERATING" },
               orderBy: { firstName: "asc" },
@@ -71,7 +71,7 @@ export async function getDashboardData() {
             })
           : Promise.resolve([]),
 
-        !isGVT
+        !isGVP
           ? prisma.doctor.findMany({
               where: { type: "CONSULTANT" },
               orderBy: { firstName: "asc" },
@@ -82,11 +82,11 @@ export async function getDashboardData() {
         // 2. Estatísticas de Membros
         prisma.user.count(),
         prisma.user.count({ where: { role: UserRole.COLIH } }),
-        prisma.user.count({ where: { role: UserRole.GVT } }),
+        prisma.user.count({ where: { role: UserRole.GVP } }),
       ]);
 
     return {
-      allowed: !isGVT, // Define se pode ver médicos
+      allowed: !isGVP, // Define se pode ver médicos
       userRole: role,
       colaboradores,
       consultores,
@@ -95,7 +95,7 @@ export async function getDashboardData() {
         membros: {
           total: totalMembros,
           colih: membrosCOLIH,
-          gvt: membrosGVT,
+          GVP: membrosGVP,
         },
       },
     };
@@ -118,7 +118,7 @@ export async function getDashboardData() {
 export async function createDoctor(prevState: State, formData: FormData) {
   // 1. Segurança: Verificar Sessão
   const session = await auth();
-  if (!session?.user?.id || session.user.role === "GVT") {
+  if (!session?.user?.id || session.user.role === "GVP") {
     return {
       message: "Permissão negada. Apenas membros COLIH podem cadastrar.",
     };
@@ -174,7 +174,7 @@ export async function updateDoctor(
 ) {
   // Segurança
   const session = await auth();
-  if (!session?.user || session.user.role === "GVT") {
+  if (!session?.user || session.user.role === "GVP") {
     return { message: "Acesso negado." };
   }
 
@@ -221,7 +221,7 @@ export async function updateDoctor(
 export async function deleteDoctor(id: string) {
   const session = await auth();
   // Proteção extra para delete
-  if (!session?.user || session.user.role === "GVT") {
+  if (!session?.user || session.user.role === "GVP") {
     return { success: false, error: "Acesso negado" };
   }
   try {
@@ -265,7 +265,7 @@ export async function handleLogout() {
 export async function createUser(prevState: State, formData: FormData) {
   // Segurança: Apenas quem já é COLIH ou ADMIN pode criar outros usuários
   const session = await auth();
-  if (session?.user?.role === "GVT") {
+  if (session?.user?.role === "GVP") {
     return { message: "Você não tem permissão para criar novos usuários." };
   }
 

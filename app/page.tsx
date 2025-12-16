@@ -33,9 +33,9 @@ export default async function Dashboard() {
   const data = await getDashboardData();
 
   // Garantimos que stats existe, senão usamos padrão
-  const stats = data.stats || { membros: { total: 0, colih: 0, gvt: 0 } };
+  const stats = data.stats || { membros: { total: 0, colih: 0, GVP: 0 } };
 
-  // --- CENÁRIO GVT ---
+  // --- CENÁRIO GVP ---
   if (!data.allowed) {
     return (
       <main className="min-h-screen p-8 bg-slate-50 flex flex-col items-center">
@@ -45,14 +45,14 @@ export default async function Dashboard() {
               Olá, {session.user?.name}
             </h1>
             <p className="text-slate-500 mb-8">
-              Você está logado como membro GVT. Abaixo está o quadro da equipe.
+              Você está logado como membro GVP. Abaixo está o quadro da equipe.
             </p>
 
             <Link href="/membros" className="block group">
               <StatCard
                 label="Total de Membros"
                 value={stats.membros.total}
-                subtext={`${stats.membros.colih} COLIH • ${stats.membros.gvt} GVT`}
+                subtext={`${stats.membros.colih} COLIH • ${stats.membros.GVP} GVP`}
                 color="border-l-4 border-l-purple-500 hover:bg-slate-50 transition"
                 icon="👥"
               />
@@ -98,7 +98,7 @@ export default async function Dashboard() {
               <StatCard
                 label="Equipe"
                 value={stats.membros.total}
-                subtext={`${stats.membros.colih} COLIH / ${stats.membros.gvt} GVT`}
+                subtext={`${stats.membros.colih} COLIH / ${stats.membros.GVP} GVP`}
                 color="border-l-4 border-l-purple-500"
                 icon="👥"
               />

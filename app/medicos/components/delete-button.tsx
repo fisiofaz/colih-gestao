@@ -20,7 +20,7 @@ export function DeleteButton({ id, name }: { id: string; name: string }) {
         // O TypeScript pode reclamar que a action retorna void ou objeto, então tratamos como 'any' ou verificamos a propriedade
         const response = await deleteDoctor(id);
 
-        // 3. Se o servidor retornou um objeto com erro (ex: bloqueio GVT)
+        // 3. Se o servidor retornou um objeto com erro (ex: bloqueio GVP)
         if (response && typeof response === "object" && "error" in response) {
           alert(response.error); // "Acesso negado"
         }

@@ -15,5 +15,5 @@ export const GENDER_LABELS = {
 export const USER_ROLE_LABELS = {
   ADMIN: "Administrador do Sistema",
   MEMBER: "Membro da Colih (Acesso Total",
-  GVT: "Membro do GVT (Acesso Restrito)",
+  GVP: "Membro do GVP (Acesso Restrito)",
 };

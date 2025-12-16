@@ -21,8 +21,8 @@ export default async function MedicosPage({ searchParams }: PageProps) {
 
   if (!session) redirect("/login");
 
-  // Se for GVT, expulsa para a Home (Segurança de Rota)
-  if (session.user?.role === "GVT") {
+  // Se for GVP, expulsa para a Home (Segurança de Rota)
+  if (session.user?.role === "GVP") {
     redirect("/");
   }
 
