@@ -5,9 +5,10 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { doctorSchema, DoctorFormData } from "@/lib/schemas";
 import { createDoctor, updateDoctor } from "@/app/actions"; 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Doctor } from "@prisma/client";
 import { toast } from "sonner";
+import { maskCEP, maskPhone, unmask } from "@/lib/utils";
 
 // Interface das Props: aceita um médico opcional
 interface DoctorFormProps {
@@ -21,10 +22,12 @@ export default function DoctorForm({ doctor }: DoctorFormProps) {
   const {
     register,
     handleSubmit,
+    setValue, // Permite definir valores dos campos manualmente
+    watch, // Permite "assistir" o valor de um campo
+    setFocus, // Para focar no campo Número após achar o endereço
     formState: { errors },
   } = useForm({
     resolver: zodResolver(doctorSchema),
-    // A MÁGICA ACONTECE AQUI:
     // Se for edição, usa os dados do médico. Se for novo, usa os padrões.
     defaultValues: isEditing
       ? {
@@ -33,11 +36,11 @@ export default function DoctorForm({ doctor }: DoctorFormProps) {
           type: doctor.type,
           gender: doctor.gender,
           email: doctor.email || "",
-          phoneMobile: doctor.phoneMobile || "",
+          phoneMobile: maskPhone(doctor.phoneMobile || ""),
           address: doctor.address || "",
           city: doctor.city || "",
           state: doctor.state || "",
-          zipCode: doctor.zipCode || "",
+          zipCode: maskCEP(doctor.zipCode || ""),
           country: doctor.country || "Brasil",
           specialty1: doctor.specialty1,
           specialty2: doctor.specialty2 || "",
@@ -53,18 +56,75 @@ export default function DoctorForm({ doctor }: DoctorFormProps) {
         },
   });
 
+  // --- ASSISTIR O CEP ---
+  const zipCodeValue = watch("zipCode");
+
+  useEffect(() => {
+    // Só roda se tiver valor
+    if (!zipCodeValue) return;
+
+    // Aplica máscara visual
+    const maskedZip = maskCEP(zipCodeValue);
+    if (zipCodeValue !== maskedZip) {
+      setValue("zipCode", maskedZip);
+    }
+
+    // Se o CEP estiver completo (8 dígitos reais), busca no ViaCEP
+    const cleanZip = unmask(zipCodeValue);
+    if (cleanZip.length === 8) {
+      fetchAddress(cleanZip);
+    }
+  }, [zipCodeValue, setValue]);
+
+  // Função que busca no ViaCEP
+  async function fetchAddress(cep: string) {
+    try {
+      const response = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
+      const data = await response.json();
+
+      if (data.erro) {
+        toast.error("CEP não encontrado!");
+        setFocus("address"); // Foca no endereço para digitar manual
+        return;
+      }
+
+      // Preenche os campos automaticamente
+      setValue("address", data.logradouro);
+      setValue("city", data.localidade);
+      setValue("state", data.uf);
+
+      toast.success("Endereço encontrado!");
+      // Foca no campo de endereço para a pessoa completar o número
+      setTimeout(() => setFocus("address"), 100);
+    } catch (error) {
+      console.error("Erro ao buscar CEP", error);
+      // Não damos erro fatal, deixamos o usuário digitar
+    }
+  }
+
+  // --- MÁSCARA DE TELEFONE ---
+  // Usamos onChange no input para aplicar em tempo real
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const formatted = maskPhone(e.target.value);
+    setValue("phoneMobile", formatted);
+  };
+
   async function onSubmit(data: DoctorFormData) {
     setIsSubmitting(true);
-
     const toastId = toast.loading("Salvando informações...");
 
-    // Converte JSON para FormData (Necessário para Server Actions)
+    // Converte JSON para FormData
     const formData = new FormData();
     Object.entries(data).forEach(([key, value]) => {
       if (typeof value === "boolean") {
         if (value) formData.append(key, "on");
       } else if (value !== undefined && value !== null && value !== "") {
-        formData.append(key, String(value));
+        // Limpamos a máscara antes de enviar pro banco 
+        if (key === "phoneMobile" || key === "zipCode") {
+          formData.append(key, unmask(String(value)));
+        } else {
+          formData.append(key, String(value));
+        }
       }
     });
 
@@ -103,7 +163,7 @@ export default function DoctorForm({ doctor }: DoctorFormProps) {
         </p>
       </div>
 
-      {/* --- SEÇÃO 1: TIPO E NOME --- */}
+      {/* --- TIPO E NOME --- */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="space-y-1">
           <label className="text-sm font-medium text-slate-700">Tipo *</label>
@@ -157,7 +217,7 @@ export default function DoctorForm({ doctor }: DoctorFormProps) {
         </div>
       </div>
 
-      {/* --- SEÇÃO 2: DETALHES PESSOAIS --- */}
+      {/* --- CONTATOS --- */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="space-y-1">
           <label className="text-sm font-medium text-slate-700">Sexo *</label>
@@ -183,45 +243,71 @@ export default function DoctorForm({ doctor }: DoctorFormProps) {
           <label className="text-sm font-medium text-slate-700">Celular</label>
           <input
             {...register("phoneMobile")}
+            onChange={handlePhoneChange}
             className="w-full input-padrao"
             placeholder="(00) 00000-0000"
           />
         </div>
       </div>
 
-      {/* --- SEÇÃO 3: ENDEREÇO --- */}
+      {/* --- ENDEREÇO INTELIGENTE --- */}
       <div className="pt-4 border-t border-slate-100">
-        <h3 className="text-lg font-semibold text-slate-700 mb-4">Endereço</h3>
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="text-lg font-semibold text-slate-700">Endereço</h3>
+          <span className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded-full font-medium">
+            ✨ Busca Automática via CEP
+          </span>
+        </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <input
-            {...register("address")}
-            placeholder="Rua / Número"
-            className="w-full input-padrao"
-          />
-          <input
-            {...register("city")}
-            placeholder="Cidade"
-            className="w-full input-padrao"
-          />
-          <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-1">
+            <label className="text-xs font-bold text-slate-500 uppercase">
+              CEP
+            </label>
+            <input
+              {...register("zipCode")}
+              className="w-full input-padrao font-mono" // font-mono ajuda a ver os números
+              placeholder="00000-000"
+              maxLength={9}
+            />
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs font-bold text-slate-500 uppercase">
+              Estado (UF)
+            </label>
             <input
               {...register("state")}
               placeholder="UF"
-              className="w-full input-padrao"
-              maxLength={2}
+              className="w-full input-padrao bg-slate-50"
+              readOnly
+              tabIndex={-1}
             />
+          </div>
+          <div className="space-y-1 md:col-span-2">
+            <label className="text-xs font-bold text-slate-500 uppercase">
+              Cidade
+            </label>
             <input
-              {...register("zipCode")}
-              placeholder="CEP"
+              {...register("city")}
+              placeholder="Cidade"
+              className="w-full input-padrao bg-slate-50"
+              readOnly
+              tabIndex={-1}
+            />
+            {errors.city && (
+              <p className="text-red-500 text-xs mt-1">Cidade é obrigatória</p>
+            )}
+          </div>
+          <div className="space-y-1 md:col-span-2">
+            <label className="text-xs font-bold text-slate-500 uppercase">
+              Endereço (Rua, Av.) e Número
+            </label>
+            <input
+              {...register("address")}
+              placeholder="Ex: Av. Paulista, 1000"
               className="w-full input-padrao"
             />
           </div>
         </div>
-        {errors.city && (
-          <p className="text-red-500 text-xs mt-1">
-            Cidade e UF são obrigatórios
-          </p>
-        )}
       </div>
 
       {/* --- SEÇÃO 4: ESPECIALIDADES --- */}
@@ -300,7 +386,8 @@ export default function DoctorForm({ doctor }: DoctorFormProps) {
             ? "Salvando..."
             : isEditing
             ? "Atualizar Médico"
-            : "Salvar Médico"}
+            : "Salvar Médico"
+          }
         </button>
       </div>
 
