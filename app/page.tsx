@@ -1,58 +1,111 @@
-import { getDashboardData } from "@/app/actions";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
+import { prisma } from "@/lib/prisma";
+import { UserRole } from "@prisma/client";
+import DashboardCharts from "@/app/components/dashboard/dashboard-charts";
+import { StatCard } from "@/app/components/dashboard/stat-card";
 
-// --- 1. Definimos o componente FORA da função principal ---
-type StatCardProps = {
-  label: string;
-  value: number;
-  subtext?: string;
-  color: string;
-  icon: string;
-};
-
-const StatCard = ({ label, value, subtext, color, icon }: StatCardProps) => (
-  <div
-    className={`bg-white p-6 rounded-xl border border-slate-100 shadow-sm flex items-center justify-between ${color}`}
-  >
-    <div>
-      <p className="text-sm font-medium text-slate-500 mb-1">{label}</p>
-      <p className="text-3xl font-bold text-slate-800">{value}</p>
-      {subtext && <p className="text-xs text-slate-400 mt-1">{subtext}</p>}
-    </div>
-    <div className="text-3xl opacity-80">{icon}</div>
-  </div>
-);
-
-// --- 2. Função Principal ---
 export default async function Dashboard() {
   const session = await auth();
   if (!session) redirect("/login");
 
-  const data = await getDashboardData();
+  // Busca dados existentes (Listas e Totais)
+  const user = session.user;
+  const isGVP = user?.role === "GVP";
 
-  // Garantimos que stats existe, senão usamos padrão
-  const stats = data.stats || { membros: { total: 0, colih: 0, GVP: 0 } };
+  // --- BUSCA DE DADOS (PARALELA PARA PERFORMANCE) ---
+  // Promise.all faz todas as buscas ao mesmo tempo, deixando o carregamento mais rápido
+  const [
+    totalDoctors,
+    cooperatingCount,
+    consultantCount,
+    specialtiesGroup,
+    citiesGroup,
+    lastCooperating,
+    lastConsultant,
+    memberStats,
+  ] = await Promise.all([
+    // Contagens Totais
+    prisma.doctor.count(),
+    prisma.doctor.count({ where: { type: "COOPERATING" } }),
+    prisma.doctor.count({ where: { type: "CONSULTANT" } }),
 
-  // --- CENÁRIO GVP ---
-  if (!data.allowed) {
+    // Agrupamento para Gráficos
+    prisma.doctor.groupBy({
+      by: ["specialty1"],
+      _count: { specialty1: true },
+      orderBy: { _count: { specialty1: "desc" } },
+      take: 5,
+    }),
+    prisma.doctor.groupBy({
+      by: ["city"],
+      _count: { city: true },
+      orderBy: { _count: { city: "desc" } },
+      take: 5,
+    }),
+
+    // Listas Recentes
+    prisma.doctor.findMany({
+      where: { type: "COOPERATING" },
+      orderBy: { createdAt: "desc" },
+      take: 5,
+    }),
+    prisma.doctor.findMany({
+      where: { type: "CONSULTANT" },
+      orderBy: { createdAt: "desc" },
+      take: 5,
+    }),
+
+    // Stats de Membros (Para o card de Equipe)
+    prisma.user.groupBy({
+      by: ["role"],
+      _count: { role: true },
+    }),
+  ]);
+
+  // --- PREPARAÇÃO DOS DADOS ---
+  // Formata dados para os gráficos
+  const specialtyChartData = specialtiesGroup.map((item) => ({
+    name: item.specialty1,
+    value: item._count.specialty1,
+  }));
+
+  const cityChartData = citiesGroup.map((item) => ({
+    name: item.city,
+    value: item._count.city,
+  }));
+
+  // Calcula stats de membros
+  const totalMembros = memberStats.reduce(
+    (acc, curr) => acc + curr._count.role,
+    0
+  );
+
+  const colihCount =
+    memberStats.find((m) => m.role === UserRole.COLIH)?._count.role || 0;
+  const gvpCount =
+    memberStats.find((m) => m.role === UserRole.GVP)?._count.role || 0;
+
+  // --- 3. RENDERIZAÇÃO ---
+
+  //  VISÃO GVP 
+  if (isGVP) {
     return (
       <main className="min-h-screen p-8 bg-slate-50 flex flex-col items-center">
-        <div className="max-w-4xl w-full space-y-8">
+        <div className="max-w-4xl w-full">
           <div className="bg-white p-8 rounded-xl shadow-sm border border-slate-200">
             <h1 className="text-2xl font-bold text-slate-800 mb-4">
-              Olá, {session.user?.name}
+              Olá, {user?.name}
             </h1>
             <p className="text-slate-500 mb-8">
               Você está logado como membro GVP. Abaixo está o quadro da equipe.
             </p>
-
             <Link href="/membros" className="block group">
               <StatCard
                 label="Total de Membros"
-                value={stats.membros.total}
-                subtext={`${stats.membros.colih} COLIH • ${stats.membros.GVP} GVP`}
+                value={totalMembros}
+                subtext={`${colihCount} COLIH • ${gvpCount} GVP`}
                 color="border-l-4 border-l-purple-500 hover:bg-slate-50 transition"
                 icon="👥"
               />
@@ -72,7 +125,7 @@ export default async function Dashboard() {
           <div>
             <h1 className="text-3xl font-bold text-slate-900">Painel Geral</h1>
             <p className="text-slate-500 mt-1">
-              Bem-vindo, {session.user?.name?.split(" ")[0]}.
+              Bem-vindo, {user?.name?.split(" ")[0]}.
             </p>
           </div>
           <div className="flex gap-3">
@@ -91,14 +144,14 @@ export default async function Dashboard() {
           </div>
         </div>
 
-        {/* Estatísticas */}
+        {/* Estatísticas (Cards) */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <Link href="/membros">
             <div className="cursor-pointer hover:opacity-95 transition">
               <StatCard
                 label="Equipe"
-                value={stats.membros.total}
-                subtext={`${stats.membros.colih} COLIH / ${stats.membros.GVP} GVP`}
+                value={totalMembros}
+                subtext={`${colihCount} COLIH / ${gvpCount} GVP`}
                 color="border-l-4 border-l-purple-500"
                 icon="👥"
               />
@@ -112,7 +165,7 @@ export default async function Dashboard() {
                   Cooperadores
                 </p>
                 <p className="text-3xl font-bold text-slate-800">
-                  {data.colaboradores.length}
+                  {cooperatingCount}
                 </p>
               </div>
               <div className="text-3xl opacity-80">🩺</div>
@@ -132,7 +185,7 @@ export default async function Dashboard() {
                   Consultores
                 </p>
                 <p className="text-3xl font-bold text-slate-800">
-                  {data.consultores.length}
+                  {consultantCount}
                 </p>
               </div>
               <div className="text-3xl opacity-80">🎓</div>
@@ -146,6 +199,12 @@ export default async function Dashboard() {
           </div>
         </div>
 
+        {/* --- GRÁFICOS --- */}
+        <DashboardCharts
+          specialtyData={specialtyChartData}
+          cityData={cityChartData}
+        />
+
         {/* Listas Detalhadas */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Lista Colaboradores */}
@@ -157,7 +216,7 @@ export default async function Dashboard() {
               </h2>
             </div>
             <div className="p-2">
-              {data.colaboradores.map((medico) => (
+              {lastCooperating.map((medico) => (
                 <div
                   key={medico.id}
                   className="p-3 hover:bg-slate-50 rounded-lg transition flex justify-between items-center group"
@@ -171,14 +230,14 @@ export default async function Dashboard() {
                     </div>
                   </div>
                   <Link
-                    href={`/medicos/${medico.id}`}
+                    href={`/medicos/${medico.id}/editar`}
                     className="text-xs font-medium text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity px-3 py-1 bg-blue-50 rounded"
                   >
                     Abrir
                   </Link>
                 </div>
               ))}
-              {data.colaboradores.length === 0 && (
+              {lastCooperating.length === 0 && (
                 <p className="p-6 text-center text-sm text-slate-400">
                   Nenhum registro.
                 </p>
@@ -195,7 +254,7 @@ export default async function Dashboard() {
               </h2>
             </div>
             <div className="p-2">
-              {data.consultores.map((medico) => (
+              {lastConsultant.map((medico) => (
                 <div
                   key={medico.id}
                   className="p-3 hover:bg-slate-50 rounded-lg transition flex justify-between items-center group"
@@ -209,14 +268,14 @@ export default async function Dashboard() {
                     </div>
                   </div>
                   <Link
-                    href={`/medicos/${medico.id}`}
+                    href={`/medicos/${medico.id}/editar`}
                     className="text-xs font-medium text-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity px-3 py-1 bg-indigo-50 rounded"
                   >
                     Abrir
                   </Link>
                 </div>
               ))}
-              {data.consultores.length === 0 && (
+              {lastConsultant.length === 0 && (
                 <p className="p-6 text-center text-sm text-slate-400">
                   Nenhum registro.
                 </p>

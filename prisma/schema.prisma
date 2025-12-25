@@ -10,7 +10,7 @@ datasource db {
 // ENUMS: Ajudam a padronizar as escolhas 
 enum UserRole {
   ADMIN
-  MEMBER
+  COLIH
   GVP
 }
 
