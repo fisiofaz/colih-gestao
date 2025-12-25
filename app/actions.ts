@@ -9,7 +9,8 @@ import { auth, signIn, signOut } from "@/auth";
 import { AuthError } from "next-auth";
 import { Prisma, DoctorType, UserRole } from "@prisma/client";
 import { doctorSchema } from "@/lib/schemas";
-
+import { logAudit } from "@/lib/logger";
+import { put, del } from "@vercel/blob"; 
 
 // --- TIPO GLOBAL PARA O ESTADO DOS FORMULÁRIOS ---
 export type State = {
@@ -155,6 +156,12 @@ export async function createDoctor(prevState: State, formData: FormData) {
         createdById: session.user.id,
       },
     });
+    // --- LOG DE AUDITORIA ---
+    await logAudit(
+      "CREATE",
+      "DOCTOR",
+      `Criou médico: ${rest.firstName} ${rest.lastName} (${rest.specialty1})`
+    );
   } catch (error) {
     console.error(error);
     return {
@@ -209,6 +216,13 @@ export async function updateDoctor(
       where: { id },
       data: dataUpdate,
     });
+
+    // --- LOG DE AUDITORIA ---
+    await logAudit(
+      "UPDATE",
+      "DOCTOR",
+      `Editou médico ID: ${id} - Nome: ${rest.firstName} ${rest.lastName}`
+    );
   } catch (error) {
     return { message: "Erro ao atualizar médico." };
   }
@@ -228,6 +242,14 @@ export async function deleteDoctor(id: string) {
     await prisma.doctor.delete({
       where: { id },
     });
+
+    // --- LOG DE AUDITORIA ---
+    await logAudit(
+      "DELETE", 
+      "DOCTOR", 
+      `Excluiu médico ID: ${id}`
+    );
+
   } catch (error) {
     return { success: false, error: "Erro ao excluir." };
   }
@@ -341,4 +363,136 @@ export async function updatePassword(prevState: State, formData: FormData) {
 
   // Redireciona para a home
   redirect("/");
+}
+
+// =========================================================
+// 4. UPLOAD DE ARQUIVOS (VERCEL BLOB)
+// =========================================================
+
+export async function uploadDocument(doctorId: string, formData: FormData) {
+  const session = await auth();
+  if (!session?.user || session.user.role === "GVP") {
+    return { message: "Permissão negada." };
+  }
+
+  const file = formData.get("file") as File;
+  
+  if (!file || file.size === 0) {
+    return { message: "Nenhum arquivo selecionado." };
+  }
+
+  // Limite de 4MB (Opcional, mas bom para segurança)
+  if (file.size > 4 * 1024 * 1024) {
+    return { message: "Arquivo muito grande. Máximo 4MB." };
+  }
+
+  try {
+    // Envia para a Vercel (Nuvem)
+    const blob = await put(file.name, file, {
+      access: 'public',
+    });
+
+    // Salva o link no Banco
+    await prisma.document.create({
+      data: {
+        url: blob.url,
+        filename: file.name,
+        doctorId: doctorId,
+      },
+    });
+
+    // Auditoria
+    await logAudit("CREATE", "DOCTOR", `Anexou arquivo: ${file.name} ao médico ID: ${doctorId}`);
+
+  } catch (error) {
+    console.error(error);
+    return { message: "Erro ao fazer upload." };
+  }
+
+  revalidatePath(`/medicos/${doctorId}/editar`);
+}
+
+export async function deleteDocument(documentId: string, doctorId: string, fileUrl: string) {
+  const session = await auth();
+  if (!session?.user || session.user.role === "GVP") return;
+
+  try {
+    // Deleta do Banco
+    await prisma.document.delete({ where: { id: documentId } });
+
+    // Deleta da Nuvem (Vercel)
+    await del(fileUrl);
+
+    // Auditoria
+    await logAudit("DELETE", "DOCTOR", `Removeu arquivo ID: ${documentId}`);
+
+  } catch (error) {
+    console.error("Erro ao deletar arquivo", error);
+  }
+
+  revalidatePath(`/medicos/${doctorId}/editar`);
+}
+
+// =========================================================
+// 5. AGENDA DE VISITAS
+// =========================================================
+
+export async function createVisit(doctorId: string, formData: FormData) {
+  const session = await auth();
+  if (!session?.user || session.user.role === "GVP") return { message: "Sem permissão" };
+
+  const dateString = formData.get("date") as string; // Vem como "2023-12-25T14:00"
+  const notes = formData.get("notes") as string;
+
+  if (!dateString) return { message: "Data é obrigatória" };
+
+  try {
+    await prisma.visit.create({
+      data: {
+        date: new Date(dateString),
+        notes,
+        doctorId,
+        status: "PENDING"
+      }
+    });
+
+    await logAudit("CREATE", "DOCTOR", `Agendou visita para ${new Date(dateString).toLocaleDateString()} (Doc ID: ${doctorId})`);
+
+  } catch (error) {
+    return { message: "Erro ao agendar visita." };
+  }
+
+  revalidatePath(`/medicos/${doctorId}/editar`);
+}
+
+export async function toggleVisitStatus(visitId: string, currentStatus: string, doctorId: string) {
+  const session = await auth();
+  if (!session?.user || session.user.role === "GVP") return;
+
+  const newStatus = currentStatus === "PENDING" ? "DONE" : "PENDING";
+
+  try {
+    await prisma.visit.update({
+      where: { id: visitId },
+      data: { status: newStatus }
+    });
+  } catch (error) {
+    console.error("Erro ao atualizar status", error);
+  }
+
+  revalidatePath(`/medicos/${doctorId}/editar`);
+}
+
+export async function deleteVisit(visitId: string, doctorId: string) {
+  const session = await auth();
+  if (!session?.user || session.user.role === "GVP") return;
+
+  try {
+    await prisma.visit.delete({ where: { id: visitId } });
+    await logAudit("DELETE", "DOCTOR", `Cancelou visita ID: ${visitId}`);
+  } catch (error) {
+    console.error("Erro ao excluir visita", error);
+  }
+
+  revalidatePath(`/medicos/${doctorId}/editar`);
 }

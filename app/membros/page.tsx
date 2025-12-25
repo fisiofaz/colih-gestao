@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
+import { PrintButton } from "../medicos/components/print-button";
 
 export default async function MembersPage() {
   //Proteção: Só logado entra aqui

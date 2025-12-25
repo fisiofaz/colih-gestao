@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google"; 
+import { Inter } from "next/font/google";
 import "./globals.css";
 import Link from "next/link";
 import { auth } from "@/auth";
@@ -18,89 +18,88 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  // Buscamos a sessão para saber quem está logado e qual o cargo
   const session = await auth();
   const user = session?.user;
-
-  // Verificamos se é GVP para esconder menus
-  const isGVP = user?.role === "GVP";
+  const isGVP = user?.role === "GVP"; // Verifica se é GVP
 
   return (
     <html lang="pt-BR">
       <body className={`${inter.className} antialiased bg-slate-50`}>
-        <nav className="bg-blue-900 text-white shadow-lg">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex items-center justify-between h-16">
-              {/* Logo / Título */}
-              <div className="flex items-center gap-2">
-                <span className="text-2xl">🏥</span>
-                <Link
-                  href="/"
-                  className="font-bold text-xl tracking-tight hover:text-blue-100 transition-colors"
-                >
-                  COLIH Gestão
-                </Link>
-              </div>
+        {/* BARRA DE NAVEGAÇÃO */}
+        {user && (
+          <nav className="bg-blue-900 text-white shadow-lg no-print">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+              <div className="flex justify-between h-16 items-center">
+                <div className="flex items-center gap-8">
+                  {/* Logo / Home */}
+                  <Link
+                    href="/"
+                    className="text-xl font-bold tracking-tight flex items-center gap-2"
+                  >
+                    <span className="text-2xl">🏥</span> COLIH Gestão
+                  </Link>
 
-              {/* Menu da Direita */}
-              <div className="hidden md:flex items-center space-x-4">
-                {/* Se estiver logado, mostra o botão Médicos */}
-                {user && (
-                  <>
-                    {/* REGRA: Só mostra Médicos se NÃO for GVP */}
+                  {/* Links do Menu */}
+                  <div className="hidden md:flex gap-6 text-sm font-medium">
+                    <Link
+                      href="/"
+                      className="hover:text-blue-200 transition-colors"
+                    >
+                      Dashboard
+                    </Link>
+
+                    {/* Só mostra Médicos se NÃO for GVP (conforme sua regra anterior de esconder a lista) 
+                        Se quiser que GVP veja a lista mas não edite, remova o !isGVP daqui */}
                     {!isGVP && (
                       <Link
                         href="/medicos"
-                        className="hover:bg-blue-800 px-3 py-2 rounded-md text-sm font-medium transition-colors"
+                        className="hover:text-blue-200 transition-colors"
                       >
                         Médicos
                       </Link>
                     )}
-                    {/* Membros todos podem ver (mas com permissões diferentes lá dentro) */}
+
                     <Link
                       href="/membros"
-                      className="hover:bg-blue-800 px-3 py-2 rounded-md text-sm font-medium transition-colors"
+                      className="hover:text-blue-200 transition-colors"
                     >
                       Membros
                     </Link>
-                  </>
-                )}
 
-                {/* ÁREA DINÂMICA DE USUÁRIO */}
-                {user ? (
-                  <div className="flex items-center gap-4 ml-4 pl-4 border-l border-blue-800">
-                    <div className="text-right hidden lg:block">
-                      <p className="text-sm font-semibold leading-none">
-                        {user.name}
-                      </p>
-                      <p className="text-xs text-blue-300 font-mono mt-1">
-                        {user.role}
-                      </p>
-                    </div>
-
-                    <form action={handleLogout}>
-                      <button
-                        type="submit"
-                        className="bg-red-600 hover:bg-red-700 text-white text-xs font-bold px-3 py-2 rounded transition-colors"
+                    {/* --- NOVO: BOTÃO DE AUDITORIA --- */}
+                    {/* Só aparece se NÃO for GVP */}
+                    {!isGVP && (
+                      <Link
+                        href="/auditoria"
+                        className="flex items-center gap-1 text-blue-200 hover:text-white transition-colors"
                       >
-                        Sair
-                      </button>
-                    </form>
+                        🔍 Auditoria
+                      </Link>
+                    )}
                   </div>
-                ) : (
-                  <Link
-                    href="/login"
-                    className="bg-white text-blue-900 hover:bg-blue-50 px-4 py-2 rounded-md text-sm font-bold transition-colors"
-                  >
-                    Entrar
-                  </Link>
-                )}
+                </div>
+
+                {/* Perfil e Logout */}
+                <div className="flex items-center gap-4">
+                  <div className="text-right hidden sm:block">
+                    <div className="text-sm font-semibold">{user.name}</div>
+                    <div className="text-xs text-blue-300 bg-blue-800 px-2 py-0.5 rounded-full inline-block">
+                      {user.role}
+                    </div>
+                  </div>
+                  <form action={handleLogout}>
+                    <button className="bg-blue-800 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm transition-colors">
+                      Sair
+                    </button>
+                  </form>
+                </div>
               </div>
             </div>
-          </div>
-        </nav>
+          </nav>
+        )}
 
         {children}
+
         <Toaster position="top-right" richColors expand={true} />
       </body>
     </html>

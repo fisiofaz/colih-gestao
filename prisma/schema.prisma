@@ -42,6 +42,7 @@ model User {
   
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
+  auditLogs     AuditLog[]
   
   // Relações que você já tem...
   createdDoctors Doctor[]
@@ -90,4 +91,38 @@ model Doctor {
   // Quem cadastrou?
   createdBy       User     @relation(fields: [createdById], references: [id])
   createdById     String
+  documents       Document[]
+  visits          Visit[]
+}
+
+// NOVO MODEL: Histórico de Ações
+model AuditLog {
+  id        String   @id @default(cuid())
+  action    String   // Ex: "CREATE", "UPDATE", "DELETE"
+  resource  String   // Ex: "Doctor", "User"
+  details   String?  // Ex: "Nome: João Silva" ou JSON com detalhes
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+}
+
+model Document {
+  id        String   @id @default(cuid())
+  url       String   // O link do arquivo na internet
+  filename  String   // O nome original (ex: cartao.jpg)
+  doctorId  String
+  doctor    Doctor   @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+}
+
+model Visit {
+  id        String   @id @default(cuid())
+  date      DateTime // Data e Hora da visita
+  notes     String?  // Ex: "Conversar sobre sangue"
+  status    String   @default("PENDING") // "PENDING" ou "DONE"
+  
+  doctorId  String
+  doctor    Doctor   @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  
+  createdAt DateTime @default(now())
 }

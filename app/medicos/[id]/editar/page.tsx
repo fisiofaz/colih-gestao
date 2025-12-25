@@ -4,6 +4,8 @@ import { notFound, redirect } from "next/navigation";
 import { auth } from "@/auth"; 
 import Link from "next/link";
 import DoctorForm from "@/app/components/doctors/DoctorForm";
+import DocumentManager from "@/app/components/doctors/document-manager";
+import VisitManager from "@/app/components/doctors/visit-manager";
 
 interface PageProps {
   // MUDANÇA 1: No Next.js 15, params é uma Promise
@@ -13,7 +15,7 @@ interface PageProps {
 }
 
 export default async function EditarMedicoPage({ params }: PageProps) {
-  // --- 1. SEGURANÇA ---
+  // --- SEGURANÇA ---
   const session = await auth();
 
   // Se não tá logado, tchau
@@ -24,14 +26,17 @@ export default async function EditarMedicoPage({ params }: PageProps) {
     redirect("/");
   }
 
-  // --- 2. LÓGICA DA PÁGINA ---
-
-  // MUDANÇA 2: Precisamos fazer o 'await' antes de usar o ID
+  // --- LÓGICA DA PÁGINA ---
+  // Precisamos fazer o 'await' antes de usar o ID
   const { id } = await params;
 
   // Agora o id existe de verdade!
   const doctor = await prisma.doctor.findUnique({
     where: { id },
+    include: {
+      documents: { orderBy: { createdAt: "desc" } },
+      visits: { orderBy: { date: "asc" } },
+    },
   });
 
   if (!doctor) {
@@ -48,8 +53,16 @@ export default async function EditarMedicoPage({ params }: PageProps) {
           >
             ← Voltar
           </Link>
-        </div>        
+        </div>
+
+        {/* Formulário Principal */}
         <DoctorForm doctor={doctor} />
+
+        {/* Área de Uploads logo abaixo do form */}
+        <DocumentManager doctorId={doctor.id} documents={doctor.documents} />
+
+        {/* Adiciona a Agenda */}
+        <VisitManager doctorId={doctor.id} visits={doctor.visits} />
       </div>
     </div>
   );
