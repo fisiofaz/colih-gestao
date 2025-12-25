@@ -1,3 +1,86 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* --- REGRAS DE IMPRESSÃO (PDF) --- */
+@media print {
+
+    /* Esconder TUDO que não é conteúdo essencial */
+    nav,
+    /* Barra azul do topo */
+    button,
+    /* Todos os botões */
+    a[href*="novo"],
+    /* Botão de Novo Médico */
+    .no-print,
+    /* Nossa classe auxiliar para esconder coisas */
+    input,
+    /* Barra de busca */
+    svg,
+    /* Ícones decorativos */
+    footer {
+        display: none !important;
+    }
+
+    /* Ajustar o corpo da página para papel A4 */
+    body {
+        background-color: white;
+        color: black;
+        font-size: 12pt;
+        /* Tamanho bom para leitura */
+    }
+
+    main {
+        padding: 0 !important;
+        margin: 0 !important;
+        max-width: 100% !important;
+    }
+
+    /* Transformar o Grid em uma Lista Compacta */
+    /* Removemos o grid de 3 colunas para caber mais gente na folha */
+    section.grid {
+        display: block !important;
+        /* Vira uma lista um embaixo do outro */
+    }
+
+    /* 4. Estilizar o Card do Médico para o Papel */
+    .group {
+        break-inside: avoid;
+        /* Não deixa cortar o médico no meio de duas páginas */
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        margin-bottom: 10px;
+        padding: 10px;
+        box-shadow: none !important;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    /* Ajustes finos no texto do card */
+    .group h2 {
+        font-size: 14pt !important;
+        color: #000 !important;
+    }
+
+    /* Mostra a etiqueta de tipo (Cooperador/Consultor) com borda simples */
+    .group span.uppercase {
+        background: none !important;
+        border: 1px solid #000;
+        color: #000 !important;
+    }
+
+    /* 5. Cabeçalho de Impressão (Só aparece no papel) */
+    .only-print {
+        display: block !important;
+        text-align: center;
+        margin-bottom: 20px;
+        border-bottom: 2px solid #000;
+        padding-bottom: 10px;
+    }
+}
+
+/* Esconde o cabeçalho de impressão na tela normal */
+.only-print {
+    display: none;
+}

@@ -7,6 +7,7 @@ import Pagination from "./components/pagination";
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import { DoctorType } from "@prisma/client";
+import { PrintButton } from "./components/print-button";
 
 // Definimos o tipo das props da página
 interface PageProps {
@@ -18,14 +19,14 @@ interface PageProps {
 }
 
 export default async function MedicosPage({ searchParams }: PageProps) {
-  // 1. SEGURANÇA: Verificar Login e Permissão
+  // SEGURANÇA: Verificar Login e Permissão
   const session = await auth();
   if (!session) redirect("/login");
 
   // Se for GVP, expulsa para a Home (Segurança de Rota)
   if (session.user?.role === "GVP") redirect("/");
 
-  // 2. PARÂMETROS DA URL
+  // PARÂMETROS DA URL
   // Lemos a busca e o tipo (aguardando a Promise do Next.js 15)
   const ITEMS_PER_PAGE = 9;
   const params = await searchParams;
@@ -48,14 +49,14 @@ export default async function MedicosPage({ searchParams }: PageProps) {
       : undefined,
   };
 
-  // 3. BUSCAS PARALELAS (Dados + Contagem Total)
+  // BUSCAS PARALELAS (Dados + Contagem Total)
   const [doctors, totalCount] = await Promise.all([
     // Busca os médicos da página atual
     prisma.doctor.findMany({
       where: whereCondition,
       orderBy: { firstName: "asc" },
-      take: ITEMS_PER_PAGE, 
-      skip: skip, 
+      take: ITEMS_PER_PAGE,
+      skip: skip,
     }),
     // Conta quantos existem no TOTAL (para saber qts páginas teremos)
     prisma.doctor.count({
@@ -67,11 +68,28 @@ export default async function MedicosPage({ searchParams }: PageProps) {
   const pageTitle = tipoFiltro
     ? `Médicos ${DOCTOR_TYPE_LABELS[tipoFiltro]}es`
     : "Todos os Médicos";
- 
+
+  // Data para o cabeçalho do PDF
+  const dataImpressao = new Date().toLocaleDateString("pt-BR");
+
   return (
     <div className="min-h-screen bg-slate-50 p-8">
       <main className="max-w-7xl mx-auto">
         {/* Cabeçalho */}
+        {/* --- CABEÇALHO SECRETO (SÓ APARECE NA IMPRESSÃO) --- */}
+        <div className="only-print">
+          <h1 className="text-2xl font-bold uppercase mb-1">
+            Lista de Médicos - COLIH
+          </h1>
+          <p className="text-sm">Relatório gerado em: {dataImpressao}</p>
+          {tipoFiltro && (
+            <p className="text-sm font-bold mt-1">
+              Filtro: {DOCTOR_TYPE_LABELS[tipoFiltro]}
+            </p>
+          )}
+        </div>
+
+        {/* Cabeçalho da Tela (no-print para sumir no papel) */}
         <header className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
           <div>
             <h1 className="text-3xl font-bold text-slate-800">{pageTitle}</h1>
@@ -88,6 +106,10 @@ export default async function MedicosPage({ searchParams }: PageProps) {
                 Ver Todos
               </Link>
             )}
+
+            {/* --- BOTÃO DE IMPRIMIR --- */}
+            <PrintButton />
+
             <Link
               href="/medicos/novo"
               className="bg-blue-700 hover:bg-blue-800 text-white px-6 py-2.5 rounded-lg shadow-sm transition-all flex items-center gap-2 font-medium"
@@ -97,8 +119,8 @@ export default async function MedicosPage({ searchParams }: PageProps) {
           </div>
         </header>
 
-        {/* Busca */}
-        <section className="mb-6 max-w-md">
+        {/* Busca (no-print) */}
+        <section className="mb-6 max-w-md no-print">
           <Search />
         </section>
 
@@ -186,8 +208,8 @@ export default async function MedicosPage({ searchParams }: PageProps) {
                   </span>
                 </div>
 
-                {/* --- NOVO: DATA DE ATUALIZAÇÃO --- */}
-                <div className="mt-4 flex items-center gap-1 text-[10px] text-slate-400 font-medium">
+                {/* Data de Atualização (Escondemos na impressão para ficar mais limpo) */}
+                <div className="mt-4 flex items-center gap-1 text-[10px] text-slate-400 font-medium no-print">
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
                     viewBox="0 0 20 20"
@@ -213,7 +235,8 @@ export default async function MedicosPage({ searchParams }: PageProps) {
                 </div>
               </div>
 
-              <div className="mt-4 pt-3 border-t border-slate-50 flex justify-between items-center opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
+              {/* Botões de Ação (no-print para sumir) */}
+              <div className="mt-4 pt-3 border-t border-slate-50 flex justify-between items-center opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity no-print">
                 <DeleteButton id={doctor.id} name={doctor.firstName} />
                 <Link
                   href={`/medicos/${doctor.id}/editar`}
@@ -225,9 +248,9 @@ export default async function MedicosPage({ searchParams }: PageProps) {
             </div>
           ))}
 
-          {/* Estado Vazio */}
+          {/* Estado Vazio (no-print) */}
           {doctors.length === 0 && (
-            <div className="col-span-full bg-white rounded-xl border border-dashed border-slate-300 p-12 text-center">
+            <div className="col-span-full bg-white rounded-xl border border-dashed border-slate-300 p-12 text-center no-print">
               <div className="text-4xl mb-4">🔍</div>
               <h3 className="text-lg font-medium text-slate-900">
                 Nenhum médico encontrado
@@ -247,8 +270,8 @@ export default async function MedicosPage({ searchParams }: PageProps) {
           )}
         </section>
 
-        {/* 4. COMPONENTE DE PAGINAÇÃO (RODAPÉ) */}
-        <div className="mt-8">
+        {/* Rodapé Paginação (no-print) */}
+        <div className="mt-8 no-print">
           <Pagination totalPages={totalPages} />
         </div>
       </main>
