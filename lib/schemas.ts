@@ -43,6 +43,9 @@ export const doctorSchema = z.object({
   acceptsAdult: z.boolean().default(false),
   acceptsChild: z.boolean().default(false),
   acceptsNewborn: z.boolean().default(false),
+  isSus: z.boolean().optional(),
+  hasHealthPlan: z.boolean().optional(),
+  responsibleMember: z.string().optional().nullable(),
 });
 
 // Exportamos o "Tipo" para o TypeScript usar no formulário

@@ -133,6 +133,9 @@ export async function createDoctor(prevState: State, formData: FormData) {
     acceptsAdult: rawFormData.acceptsAdult === "on",
     acceptsChild: rawFormData.acceptsChild === "on",
     acceptsNewborn: rawFormData.acceptsNewborn === "on",
+    isSus: rawFormData.isSus === "on",
+    hasHealthPlan: rawFormData.hasHealthPlan === "on",
+    responsibleMember: rawFormData.responsibleMember,
   };
 
   // 2. Validação com Zod
@@ -192,6 +195,9 @@ export async function updateDoctor(
     acceptsAdult: rawFormData.acceptsAdult === "on",
     acceptsChild: rawFormData.acceptsChild === "on",
     acceptsNewborn: rawFormData.acceptsNewborn === "on",
+    isSus: rawFormData.isSus === "on",
+    hasHealthPlan: rawFormData.hasHealthPlan === "on",
+    responsibleMember: rawFormData.responsibleMember,
   };
 
   const validatedFields = doctorSchema.safeParse(dataToValidate);

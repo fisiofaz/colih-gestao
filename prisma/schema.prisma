@@ -50,49 +50,52 @@ model User {
 
 // MODELO DO MÉDICO
 model Doctor {
-  id String @id @default(cuid())
+  id String   @id      @default(cuid())
 
   // Parte 1: Metadados do contato
   type        DoctorType
   contactDate DateTime?  
   
   // Parte 2: Dados Pessoais
-  firstName   String      
-  lastName    String      
-  phoneHome   String?
-  phoneMobile String?     
-  email       String? 
-  gender      Gender   
-  address     String   
-  city        String     
-  state       String  
-  zipCode     String
-  country     String
+  firstName         String      
+  lastName          String      
+  phoneHome         String?
+  phoneMobile       String?     
+  email             String? 
+  gender            Gender   
+  address           String   
+  city              String     
+  state             String  
+  zipCode           String
+  country           String
 
   
   // Parte 3: Dados Médicos
-  specialty1      String    //  - Obrigatório ter pelo menos uma
-  specialty2      String?   
-  specialty3      String?   
-  subSpecialties1  String?  //  Podemos guardar como texto ou criar outra tabela depois
-  subSpecialties2  String? 
-  subSpecialties3  String?
+  specialty1        String    //  - Obrigatório ter pelo menos uma
+  specialty2        String?   
+  specialty3        String?   
+  subSpecialties1   String?  //  Podemos guardar como texto ou criar outra tabela depois
+  subSpecialties2   String? 
+  subSpecialties3   String?
   
   // Tipos de pacientes [cite: 39-42]
-  acceptsAdult    Boolean @default(false)
-  acceptsChild    Boolean @default(false)
-  acceptsNewborn  Boolean @default(false)
+  acceptsAdult      Boolean @default(false)
+  acceptsChild      Boolean @default(false)
+  acceptsNewborn    Boolean @default(false)
 
   // Controle do Sistema
-  notes           String?   
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  notes             String?   
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
   
   // Quem cadastrou?
-  createdBy       User     @relation(fields: [createdById], references: [id])
-  createdById     String
-  documents       Document[]
-  visits          Visit[]
+  createdBy         User     @relation(fields: [createdById], references: [id])
+  createdById       String
+  documents         Document[]
+  visits            Visit[]
+  isSus             Boolean  @default(false)
+  hasHealthPlan     Boolean  @default(false)
+  responsibleMember String?
 }
 
 // NOVO MODEL: Histórico de Ações

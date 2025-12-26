@@ -1,12 +1,14 @@
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient, DoctorType } from "@prisma/client";
+import fs from "fs";
+import path from "path";
 
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log("🌱 Iniciando o seed do banco de dados...");
+  console.log("🌱 Iniciando seed...");
 
-  // 1. Criar (ou buscar se já existir) um Usuário ADMIN
-  // Usamos 'upsert' (Update ou Insert): Se existe, não faz nada. Se não, cria.
+  // 1. Criar (ou buscar se já existir) o Usuário ADMIN
+  // Isso é essencial para preencher o campo 'createdById' dos médicos
   const admin = await prisma.user.upsert({
     where: { email: "admin@colih.org.br" },
     update: {},
@@ -17,70 +19,68 @@ async function main() {
     },
   });
 
-  console.log(`👤 Usuário Admin criado: ${admin.name}`);
+  console.log(`👤 Usuário Admin garantido: ${admin.name} (ID: ${admin.id})`);
 
-  // 2. Criar um Médico de Teste (Vinculado ao Admin)
-  const doctor1 = await prisma.doctor.create({
-    data: {
-      firstName: "Lucas",
-      lastName: "Silva",
-      type: "COOPERATING", // Médico Cooperador
-      gender: "MALE",
+  // 2. Ler o arquivo JSON com os médicos
+  const filePath = path.join(__dirname, "doctors.json");
 
-      // Contato
-      email: "dr.lucas@exemplo.com",
-      phoneMobile: "55999998888",
+  // Verificação de segurança caso o arquivo não exista
+  if (!fs.existsSync(filePath)) {
+    console.error("❌ Arquivo 'doctors.json' não encontrado na pasta prisma!");
+    return;
+  }
 
-      // Endereço (Simulando Santa Maria - RS)
-      address: "Av. Nossa Senhora Medianeira, 100",
-      city: "Santa Maria",
-      state: "RS",
-      zipCode: "97060-000",
-      country: "Brasil",
+  const data = fs.readFileSync(filePath, "utf-8");
+  const doctors = JSON.parse(data);
 
-      // Especialidades
-      specialty1: "Cardiologia",
-      specialty2: "Clínica Médica",
+  console.log(`📄 Encontrados ${doctors.length} médicos no arquivo JSON.`);
 
-      // Aceita quais pacientes?
-      acceptsAdult: true,
-      acceptsChild: false,
-      acceptsNewborn: false,
+  let count = 0;
 
-      // Quem cadastrou? O Admin que criamos acima
-      createdById: admin.id,
-    },
-  });
+  // 3. Inserir médicos no banco
+  for (const doc of doctors) {
+    // Verifica duplicidade pelo nome completo para evitar erros se rodar 2x
+    const exists = await prisma.doctor.findFirst({
+      where: {
+        firstName: doc.firstName,
+        lastName: doc.lastName,
+      },
+    });
 
-  console.log(`👨‍⚕️ Médico criado: Dr. ${doctor1.firstName}`);
+    if (!exists) {
+      await prisma.doctor.create({
+        data: {
+          firstName: doc.firstName,
+          lastName: doc.lastName,
+          city: doc.city,
+          state: doc.state,
+          phoneMobile: doc.phoneMobile,
+          specialty1: doc.specialty1,
+          type: doc.type as DoctorType,
 
-  // 3. Criar uma Médica de Teste
-  const doctor2 = await prisma.doctor.create({
-    data: {
-      firstName: "Mariana",
-      lastName: "Costa",
-      type: "CONSULTANT", // Médica Consultora
-      gender: "FEMALE",
+          // Novos Campos vindos do PDF
+          isSus: doc.isSus,
+          hasHealthPlan: doc.hasHealthPlan,
+          responsibleMember: doc.responsibleMember,
 
-      phoneMobile: "55988887777",
+          // Campos padrão (obrigatórios)
+          acceptsAdult: true,
+          acceptsChild: false,
+          acceptsNewborn: false,
+          country: "Brasil",
+          gender: "MALE", // Padrão, pois o PDF não especifica sexo
+          address: "Endereço não informado no PDF",
+          zipCode: "00000-000",
 
-      address: "Rua do Acampamento, 50",
-      city: "Santa Maria",
-      state: "RS",
-      zipCode: "97050-000",
-      country: "Brasil",
+          // Vínculo com o Admin
+          createdById: admin.id,
+        },
+      });
+      count++;
+    }
+  }
 
-      specialty1: "Pediatria",
-
-      acceptsAdult: false,
-      acceptsChild: true,
-      acceptsNewborn: true,
-
-      createdById: admin.id,
-    },
-  });
-
-  console.log(`👩‍⚕️ Médica criada: Dra. ${doctor2.firstName}`);
+  console.log(`✅ Seed finalizado! ${count} novos médicos inseridos.`);
 }
 
 main()

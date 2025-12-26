@@ -370,6 +370,56 @@ export default function DoctorForm({ doctor }: DoctorFormProps) {
         </div>
       </div>
 
+      <div className="border-t border-slate-100 pt-6 mt-6">
+        <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider mb-4">
+          Informações Administrativas (Colih)
+        </h3>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* CHECKBOXES SUS E CONVÊNIO */}
+          <div className="flex flex-col gap-3">
+            <label className="flex items-center gap-3 p-3 border border-slate-200 rounded-lg hover:bg-slate-50 cursor-pointer transition-colors">
+              <input
+                type="checkbox"
+                name="isSus"
+                defaultChecked={doctor?.isSus}
+                className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500"
+              />
+              <span className="text-slate-700 font-medium">Atende SUS</span>
+            </label>
+
+            <label className="flex items-center gap-3 p-3 border border-slate-200 rounded-lg hover:bg-slate-50 cursor-pointer transition-colors">
+              <input
+                type="checkbox"
+                name="hasHealthPlan"
+                defaultChecked={doctor?.hasHealthPlan}
+                className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500"
+              />
+              <span className="text-slate-700 font-medium">
+                Atende Convênios
+              </span>
+            </label>
+          </div>
+
+          {/* CAMPO MEMBRO RESPONSÁVEL */}
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">
+              Membro Responsável (Contato)
+            </label>
+            <input
+              type="text"
+              name="responsibleMember"
+              defaultValue={doctor?.responsibleMember || ""}
+              placeholder="Ex: Dinarci Pansera"
+              className="w-full rounded-lg border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+            />
+            <p className="text-xs text-slate-500 mt-1">
+              Irmão da Colih que mantém contato com este médico.
+            </p>
+          </div>
+        </div>
+      </div>
+
       <div className="pt-6 border-t border-slate-100 flex justify-end gap-3">
         <Link
           href="/medicos"
@@ -386,8 +436,7 @@ export default function DoctorForm({ doctor }: DoctorFormProps) {
             ? "Salvando..."
             : isEditing
             ? "Atualizar Médico"
-            : "Salvar Médico"
-          }
+            : "Salvar Médico"}
         </button>
       </div>
 

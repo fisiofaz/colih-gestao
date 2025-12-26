@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
-import { DOCTOR_TYPE_LABELS } from "@/lib/constants"; 
-import { DeleteButton } from "./components/delete-button"; 
+import { DOCTOR_TYPE_LABELS } from "@/lib/constants";
+import { DeleteButton } from "./components/delete-button";
 import Search from "./components/search";
 import Pagination from "./components/pagination";
 import { auth } from "@/auth";
@@ -9,7 +9,6 @@ import { redirect } from "next/navigation";
 import { DoctorType } from "@prisma/client";
 import { PrintButton } from "./components/print-button";
 
-// Definimos o tipo das props da página
 interface PageProps {
   searchParams: Promise<{
     query?: string;
@@ -19,25 +18,17 @@ interface PageProps {
 }
 
 export default async function MedicosPage({ searchParams }: PageProps) {
-  // SEGURANÇA: Verificar Login e Permissão
   const session = await auth();
   if (!session) redirect("/login");
-
-  // Se for GVP, expulsa para a Home (Segurança de Rota)
   if (session.user?.role === "GVP") redirect("/");
 
-  // PARÂMETROS DA URL
-  // Lemos a busca e o tipo (aguardando a Promise do Next.js 15)
   const ITEMS_PER_PAGE = 9;
   const params = await searchParams;
   const query = params.query || "";
-  const tipoFiltro = params.tipo as DoctorType | undefined; // 'COOPERATING' | 'CONSULTANT'
-
-  // Página atual (se vier lixo ou vazio, assume 1)
+  const tipoFiltro = params.tipo as DoctorType | undefined;
   const currentPage = Number(params.page) || 1;
   const skip = (currentPage - 1) * ITEMS_PER_PAGE;
 
-  // 2. FILTRO (Reutilizável para count e findMany)
   const whereCondition = {
     type: tipoFiltro,
     OR: query
@@ -49,16 +40,13 @@ export default async function MedicosPage({ searchParams }: PageProps) {
       : undefined,
   };
 
-  // BUSCAS PARALELAS (Dados + Contagem Total)
   const [doctors, totalCount] = await Promise.all([
-    // Busca os médicos da página atual
     prisma.doctor.findMany({
       where: whereCondition,
       orderBy: { firstName: "asc" },
       take: ITEMS_PER_PAGE,
       skip: skip,
     }),
-    // Conta quantos existem no TOTAL (para saber qts páginas teremos)
     prisma.doctor.count({
       where: whereCondition,
     }),
@@ -69,14 +57,12 @@ export default async function MedicosPage({ searchParams }: PageProps) {
     ? `Médicos ${DOCTOR_TYPE_LABELS[tipoFiltro]}es`
     : "Todos os Médicos";
 
-  // Data para o cabeçalho do PDF
   const dataImpressao = new Date().toLocaleDateString("pt-BR");
 
   return (
     <div className="min-h-screen bg-slate-50 p-8">
       <main className="max-w-7xl mx-auto">
-        {/* Cabeçalho */}
-        {/* --- CABEÇALHO SECRETO (SÓ APARECE NA IMPRESSÃO) --- */}
+        {/* CABEÇALHO DE IMPRESSÃO */}
         <div className="only-print">
           <h1 className="text-2xl font-bold uppercase mb-1">
             Lista de Médicos - COLIH
@@ -89,8 +75,8 @@ export default async function MedicosPage({ searchParams }: PageProps) {
           )}
         </div>
 
-        {/* Cabeçalho da Tela (no-print para sumir no papel) */}
-        <header className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
+        {/* CABEÇALHO DA TELA */}
+        <header className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4 no-print">
           <div>
             <h1 className="text-3xl font-bold text-slate-800">{pageTitle}</h1>
             <p className="text-slate-500 mt-1">
@@ -106,10 +92,7 @@ export default async function MedicosPage({ searchParams }: PageProps) {
                 Ver Todos
               </Link>
             )}
-
-            {/* --- BOTÃO DE IMPRIMIR --- */}
             <PrintButton />
-
             <Link
               href="/medicos/novo"
               className="bg-blue-700 hover:bg-blue-800 text-white px-6 py-2.5 rounded-lg shadow-sm transition-all flex items-center gap-2 font-medium"
@@ -119,7 +102,6 @@ export default async function MedicosPage({ searchParams }: PageProps) {
           </div>
         </header>
 
-        {/* Busca (no-print) */}
         <section className="mb-6 max-w-md no-print">
           <Search />
         </section>
@@ -129,10 +111,11 @@ export default async function MedicosPage({ searchParams }: PageProps) {
           {doctors.map((doctor) => (
             <div
               key={doctor.id}
-              className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 hover:shadow-md transition-shadow duration-200 relative group"
+              className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 hover:shadow-md transition-shadow duration-200 relative group flex flex-col"
             >
+              {/* Badge ABSOLUTO (Canto Superior Direito) */}
               <span
-                className={`absolute top-4 right-4 text-[10px] font-bold tracking-wider px-2 py-1 rounded-full uppercase
+                className={`absolute top-4 right-4 text-[10px] font-bold tracking-wider px-2 py-1 rounded-full uppercase z-10
                 ${
                   doctor.type === "COOPERATING"
                     ? "bg-blue-50 text-blue-600"
@@ -149,8 +132,13 @@ export default async function MedicosPage({ searchParams }: PageProps) {
                 }
               </span>
 
-              <div className="mb-4 pr-16">
-                <h2 className="text-xl font-bold text-slate-900 truncate">
+              {/* Título e Especialidade */}
+              {/* pr-32 garante que o texto não bata no badge */}
+              <div className="mb-2 pr-32">
+                <h2
+                  className="text-xl font-bold text-slate-900 line-clamp-2 min-h-[3.5rem] flex items-center"
+                  title={`${doctor.firstName} ${doctor.lastName}`}
+                >
                   {(() => {
                     const fullName = `${doctor.firstName} ${doctor.lastName}`;
                     const hasPrefix =
@@ -163,25 +151,49 @@ export default async function MedicosPage({ searchParams }: PageProps) {
                       : `${automaticPrefix} ${fullName}`;
                   })()}
                 </h2>
-                <span className="inline-block mt-1 text-sm text-slate-500 font-medium">
+                <span className="inline-block text-sm text-slate-500 font-medium -mt-1">
                   {doctor.specialty1}
                 </span>
               </div>
 
-              <div className="space-y-2.5 text-sm text-slate-600 border-t border-slate-100 pt-4">
+              {/* Informações de Contato */}
+              <div className="space-y-3 text-sm text-slate-600 border-t border-slate-100 pt-4 flex-1">
                 <div className="flex items-center gap-2">
                   <span className="text-lg">📍</span>
                   <span className="truncate">
                     {doctor.city} - {doctor.state}
                   </span>
                 </div>
+
                 <div className="flex items-center gap-2">
                   <span className="text-lg">📞</span>
                   <span className="font-medium">
                     {doctor.phoneMobile || "Sem telefone"}
                   </span>
                 </div>
-                <div className="flex gap-3 mt-2 pt-2 text-xl text-slate-400 grayscale opacity-50">
+
+                {/* BADGES SUS E CONVÊNIO (Com mais espaço acima: mt-4) */}
+                {(doctor.isSus || doctor.hasHealthPlan) && (
+                  <div className="flex flex-wrap gap-2 mt-4">
+                    {doctor.isSus && (
+                      <span className="inline-flex items-center rounded-md bg-green-50 px-2 py-1 text-xs font-medium text-green-700 ring-1 ring-inset ring-green-600/20">
+                        🏥 SUS
+                      </span>
+                    )}
+                    {doctor.hasHealthPlan && (
+                      <span className="inline-flex items-center rounded-md bg-indigo-50 px-2 py-1 text-xs font-medium text-indigo-700 ring-1 ring-inset ring-indigo-700/10">
+                        💳 Convênios
+                      </span>
+                    )}
+                  </div>
+                )}
+
+                {/* Ícones (Com mais espaço se tiver badges, ou padrão se não tiver) */}
+                <div
+                  className={`flex gap-3 text-xl text-slate-400 grayscale opacity-50 ${
+                    doctor.isSus || doctor.hasHealthPlan ? "mt-3" : "mt-4"
+                  }`}
+                >
                   <span
                     title="Adulto"
                     className={
@@ -208,7 +220,6 @@ export default async function MedicosPage({ searchParams }: PageProps) {
                   </span>
                 </div>
 
-                {/* Data de Atualização (Escondemos na impressão para ficar mais limpo) */}
                 <div className="mt-4 flex items-center gap-1 text-[10px] text-slate-400 font-medium no-print">
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
@@ -235,7 +246,7 @@ export default async function MedicosPage({ searchParams }: PageProps) {
                 </div>
               </div>
 
-              {/* Botões de Ação (no-print para sumir) */}
+              {/* Botões */}
               <div className="mt-4 pt-3 border-t border-slate-50 flex justify-between items-center opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity no-print">
                 <DeleteButton id={doctor.id} name={doctor.firstName} />
                 <Link
@@ -248,7 +259,7 @@ export default async function MedicosPage({ searchParams }: PageProps) {
             </div>
           ))}
 
-          {/* Estado Vazio (no-print) */}
+          {/* Estado Vazio */}
           {doctors.length === 0 && (
             <div className="col-span-full bg-white rounded-xl border border-dashed border-slate-300 p-12 text-center no-print">
               <div className="text-4xl mb-4">🔍</div>
@@ -270,7 +281,6 @@ export default async function MedicosPage({ searchParams }: PageProps) {
           )}
         </section>
 
-        {/* Rodapé Paginação (no-print) */}
         <div className="mt-8 no-print">
           <Pagination totalPages={totalPages} />
         </div>
