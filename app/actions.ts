@@ -11,6 +11,7 @@ import { Prisma, DoctorType, UserRole } from "@prisma/client";
 import { doctorSchema } from "@/lib/schemas";
 import { logAudit } from "@/lib/logger";
 import { put, del } from "@vercel/blob"; 
+import { hash } from "bcryptjs";
 
 
 // --- TIPO GLOBAL PARA O ESTADO DOS FORMULÁRIOS ---
@@ -513,19 +514,30 @@ export async function updateUser(id: string, formData: FormData) {
   const name = formData.get("name") as string;
   const email = formData.get("email") as string;
   const role = formData.get("role") as UserRole;
-
-  //  Se quiser permitir resetar senha por aqui
   const password = formData.get("password") as string;
+
+  // Prepara os dados básicos
+  const dataToUpdate: Prisma.UserUpdateInput = {
+    name,
+    email,
+    role,
+  };
+
+  if (password && password.trim() !== "") {
+    if (password.length < 6) {
+      return {
+        success: false,
+        message: "A senha deve ter no mínimo 6 caracteres.",
+      };
+    }
+    dataToUpdate.password = await hash(password, 12);
+  }
+
 
   try {
     await prisma.user.update({
       where: { id },
-      data: {
-        name,
-        email,
-        role,
-        password,
-      },
+      data: dataToUpdate, // <--- Usa o objeto dinâmico
     });
 
     revalidatePath("/membros");

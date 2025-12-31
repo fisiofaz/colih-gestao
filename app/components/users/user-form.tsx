@@ -91,6 +91,24 @@ export default function UserForm({ user }: UserFormProps) {
             ⚠️ Cuidado ao definir como Administrador.
           </p>
         </div>
+
+        {/* --- NOVO BLOCO DE SENHA --- */}
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-1">
+            Nova Senha (Opcional)
+          </label>
+          <input
+            name="password"
+            type="password"
+            placeholder="Deixe em branco para manter a senha atual"
+            minLength={6}
+            autoComplete="new-password"
+            className="w-full rounded-lg border-slate-300 focus:ring-blue-500 focus:border-blue-500 placeholder:text-slate-400"
+          />
+          <p className="text-xs text-slate-500 mt-1">
+            Preencha apenas se o usuário esqueceu a senha e precisa de uma nova.
+          </p>
+        </div>
       </div>
 
       {/* Botões */}
