@@ -31,13 +31,22 @@ export default async function Dashboard() {
   return (
     <div className="min-h-screen bg-slate-50 p-4 md:p-8">
       <main className="max-w-7xl mx-auto">
-        <div className="mb-8">
-          <h1 className="text-2xl md:text-3xl font-bold text-slate-800">
-            Olá, {session.user?.name?.split(" ")[0]}! 👋
-          </h1>
-          <p className="text-slate-500 mt-1">
-            Aqui está o resumo da sua gestão hoje.
-          </p>
+        <div className="mb-8 flex flex-col md:flex-row md:items-end justify-between gap-4">
+          <div>
+            <h1 className="text-2xl md:text-3xl font-bold text-slate-800">
+              Olá, {session.user?.name?.split(" ")[0]}! 👋
+            </h1>
+            <p className="text-slate-500 mt-1">
+              Aqui está o resumo da sua gestão hoje.
+            </p>
+          </div>
+          {/* BOTÃO PARA A NOVA PÁGINA DE ESTATÍSTICAS */}
+          <Link
+            href="/estatisticas"
+            className="inline-flex items-center justify-center gap-2 bg-white text-blue-700 border border-blue-200 px-4 py-2 rounded-lg font-medium hover:bg-blue-50 transition-colors shadow-sm"
+          >
+            📊 Ver Gráficos Detalhados
+          </Link>
         </div>
 
         {/* --- GRID DE CARDS (Estatísticas) --- */}

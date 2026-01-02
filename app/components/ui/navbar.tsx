@@ -20,6 +20,12 @@ export default function Navbar({ user }: NavbarProps) {
     { label: "Dashboard", href: "/", visible: true },
     { label: "Médicos", href: "/medicos", visible: !isGVP },
     { label: "Membros", href: "/membros", visible: true },
+    {
+      label: "Estatísticas",
+      href: "/estatisticas",
+      visible: !isGVP,
+      icon: "📊",
+    },
     { label: "Auditoria", href: "/auditoria", visible: !isGVP, icon: "🔍" },
   ];
 
