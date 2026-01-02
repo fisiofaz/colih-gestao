@@ -123,8 +123,8 @@ export default async function MedicosPage({ searchParams }: PageProps) {
               <PrintButton />
             </div>
             <Link
-              href="/medicos/novo"
-              className="hidden md:flex bg-blue-700 hover:bg-blue-800 text-white px-6 py-2.5 rounded-lg shadow-sm transition-all items-center gap-2 font-medium"
+              href="/medicos/novo"   
+              className="flex w-full md:w-auto justify-center bg-blue-700 hover:bg-blue-800 text-white px-6 py-2.5 rounded-lg shadow-sm transition-all items-center gap-2 font-medium"
             >
               <span>+</span> Novo Médico
             </Link>
