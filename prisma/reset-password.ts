@@ -5,22 +5,27 @@ const prisma = new PrismaClient();
 
 async function main() {
   const email = "admin@colih.org.br";
-  const newPassword = "123456"; // <--- SUA NOVA SENHA AQUI
+  const newPassword = "123456"; 
 
-  console.log(`🔄 Resetando senha para: ${email}...`);
+  console.log(`🔄 Conectando ao banco para resetar senha de: ${email}...`);
 
   // 1. Gera o hash seguro da senha
-  const passwordHash = await hash(newPassword, 12);
+ const passwordHash = await hash(newPassword, 10);
 
   // 2. Atualiza no banco
   try {
     const user = await prisma.user.update({
       where: { email },
-      data: { password: passwordHash },
+      data: {
+        password: passwordHash,
+        mustChangePassword: false,
+      },
     });
-    console.log(`✅ Sucesso! A senha do admin agora é: ${newPassword}`);
+   console.log(
+     `✅ Sucesso! Senha alterada para '${newPassword}' no usuário ID: ${user.id}`
+   );
   } catch (error) {
-    console.error("❌ Erro ao atualizar. Verifique se o usuário admin existe.");
+    console.error("❌ Erro: Usuário não encontrado ou erro de conexão.");
     console.error(error);
   }
 }
