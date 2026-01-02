@@ -116,7 +116,7 @@ export default async function MembrosPage({ searchParams }: PageProps) {
               <Search placeholder="Buscar por nome ou email..." />
             </section>
 
-            <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+            <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-x-auto">
               <table className="w-full text-left text-sm text-slate-600">
                 <thead className="bg-slate-50 text-xs uppercase font-semibold text-slate-500">
                   <tr>

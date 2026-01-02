@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
+import { useState } from "react";
 
 interface SpecialtySidebarProps {
   specialties: { name: string; count: number }[];
@@ -12,6 +13,7 @@ export default function SpecialtySidebar({
 }: SpecialtySidebarProps) {
   const searchParams = useSearchParams();
   const currentSpecialty = searchParams.get("especialidade");
+  const [isOpen, setIsOpen] = useState(false);
 
   // Função para manter os outros filtros (como tipo) ao clicar na especialidade
   const createQueryString = (name: string, value: string | null) => {
@@ -28,16 +30,29 @@ export default function SpecialtySidebar({
   return (
     <aside className="w-full md:w-64 flex-shrink-0 mb-8 md:mb-0 md:mr-8">
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden sticky top-4">
-        <div className="p-4 bg-slate-50 border-b border-slate-100">
+        {/* CABEÇALHO (Clicável no Mobile) */}
+        <button
+          onClick={() => setIsOpen(!isOpen)}
+          className="w-full flex justify-between items-center p-4 bg-slate-50 border-b border-slate-100 md:cursor-default"
+        >
           <h3 className="font-bold text-slate-800 text-sm uppercase tracking-wider">
             Especialidades
           </h3>
-        </div>
+          {/* Ícone que só aparece no mobile */}
+          <span className="md:hidden text-slate-500">{isOpen ? "▲" : "▼"}</span>
+        </button>
+        {/* LISTA (Escondida no Mobile se isOpen=false, Sempre visível no Desktop) */}
 
-        <div className="max-h-[70vh] overflow-y-auto p-2 space-y-1 custom-scrollbar">
-          {/* Link para "Todas" */}
+        <div
+          className={`
+          ${isOpen ? "block" : "hidden"} 
+          md:block 
+          max-h-[70vh] overflow-y-auto p-2 space-y-1 custom-scrollbar transition-all
+        `}
+        >
           <Link
             href={`/medicos?${createQueryString("especialidade", null)}`}
+            onClick={() => setIsOpen(false)}
             className={`flex justify-between items-center px-3 py-2 text-sm rounded-lg transition-colors
               ${
                 !currentSpecialty
@@ -53,6 +68,7 @@ export default function SpecialtySidebar({
             <Link
               key={item.name}
               href={`/medicos?${createQueryString("especialidade", item.name)}`}
+              onClick={() => setIsOpen(false)}
               className={`flex justify-between items-center px-3 py-2 text-sm rounded-lg transition-colors group
                 ${
                   currentSpecialty === item.name
