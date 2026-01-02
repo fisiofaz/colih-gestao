@@ -9,6 +9,7 @@ import { redirect } from "next/navigation";
 import { DoctorType } from "@prisma/client";
 import { PrintButton } from "./components/print-button";
 import SpecialtySidebar from "../components/doctors/specialty-sidebar";
+import FAB from "@/app/components/ui/fab";
 
 interface PageProps {
   searchParams: Promise<{
@@ -323,6 +324,8 @@ export default async function MedicosPage({ searchParams }: PageProps) {
             </div>
           </div>
         </div>
+        {/* BOTÃO FLUTUANTE (Só aparece no mobile) */}
+        <FAB href="/medicos/novo" label="Adicionar Médico" />
       </main>
     </div>
   );
