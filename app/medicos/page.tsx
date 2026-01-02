@@ -16,7 +16,7 @@ interface PageProps {
     query?: string;
     tipo?: string;
     page?: string;
-    especialidade?: string; // <--- Novo parâmetro
+    especialidade?: string;
   }>;
 }
 
@@ -25,43 +25,34 @@ export default async function MedicosPage({ searchParams }: PageProps) {
   if (!session) redirect("/login");
   if (session.user?.role === "GVP") redirect("/");
 
-  const ITEMS_PER_PAGE = 9;
+  const ITEMS_PER_PAGE = 10; 
   const params = await searchParams;
 
   const query = params.query || "";
   const tipoFiltro = params.tipo as DoctorType | undefined;
-  const especialidadeFiltro = params.especialidade; 
+  const especialidadeFiltro = params.especialidade;
 
   const currentPage = Number(params.page) || 1;
   const skip = (currentPage - 1) * ITEMS_PER_PAGE;
 
-  // BUSCAR TODAS AS ESPECIALIDADES (PARA O MENU LATERAL)
-  // Agrupamos por specialty1 para contar quantos médicos tem em cada uma
+  // BUSCAR TODAS AS ESPECIALIDADES
   const specialtiesGrouped = await prisma.doctor.groupBy({
     by: ["specialty1"],
-    _count: {
-      specialty1: true,
-    },
-    orderBy: {
-      specialty1: "asc",
-    },
-    where: {      
-      type: tipoFiltro
-    },
+    _count: { specialty1: true },
+    orderBy: { specialty1: "asc" },
+    where: { type: tipoFiltro },
   });
 
-  // Formatamos para o componente
   const allSpecialties = specialtiesGrouped
     .map((item) => ({
       name: item.specialty1,
       count: item._count.specialty1,
     }))
-    .filter((s) => s.name); // Remove vazios se houver
+    .filter((s) => s.name);
 
-  // CONSTRUIR O FILTRO PRINCIPAL
+  // FILTROS
   const whereCondition = {
     type: tipoFiltro,
-    // Adicionamos o filtro de especialidade se ele existir na URL
     ...(especialidadeFiltro && {
       specialty1: { equals: especialidadeFiltro, mode: "insensitive" as const },
     }),
@@ -81,9 +72,7 @@ export default async function MedicosPage({ searchParams }: PageProps) {
       take: ITEMS_PER_PAGE,
       skip: skip,
     }),
-    prisma.doctor.count({
-      where: whereCondition,
-    }),
+    prisma.doctor.count({ where: whereCondition }),
   ]);
 
   const totalPages = Math.ceil(totalCount / ITEMS_PER_PAGE);
@@ -96,10 +85,10 @@ export default async function MedicosPage({ searchParams }: PageProps) {
   const dataImpressao = new Date().toLocaleDateString("pt-BR");
 
   return (
-    <div className="min-h-screen bg-slate-50 p-8">
+    <div className="min-h-screen bg-slate-50 p-4 md:p-8">
       <main className="max-w-7xl mx-auto">
         {/* CABEÇALHO DE IMPRESSÃO */}
-        <div className="only-print">
+        <div className="hidden print:block mb-8">
           <h1 className="text-2xl font-bold uppercase mb-1">
             Lista de Médicos - COLIH
           </h1>
@@ -112,17 +101,16 @@ export default async function MedicosPage({ searchParams }: PageProps) {
         </div>
 
         {/* CABEÇALHO DA TELA */}
-        <header className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4 no-print">
-          <div>
-            <h1 className="text-3xl font-bold text-slate-800 capitalize">
+        <header className="flex flex-col md:flex-row justify-between items-center mb-6 md:mb-8 gap-4 no-print">
+          <div className="text-center md:text-left">
+            <h1 className="text-2xl md:text-3xl font-bold text-slate-800 capitalize">
               {pageTitle}
             </h1>
-            <p className="text-slate-500 mt-1">
+            <p className="text-slate-500 mt-1 text-sm md:text-base">
               Mostrando {doctors.length} de {totalCount} profissionais
             </p>
           </div>
-          <div className="flex gap-3">
-            {/* Botão limpar filtros (se tiver algum filtro ativo) */}
+          <div className="flex flex-wrap justify-center gap-3">
             {(tipoFiltro || especialidadeFiltro) && (
               <Link
                 href="/medicos"
@@ -131,10 +119,12 @@ export default async function MedicosPage({ searchParams }: PageProps) {
                 Limpar Filtros
               </Link>
             )}
-            <PrintButton />
+            <div className="hidden md:block">
+              <PrintButton />
+            </div>
             <Link
               href="/medicos/novo"
-              className="bg-blue-700 hover:bg-blue-800 text-white px-6 py-2.5 rounded-lg shadow-sm transition-all flex items-center gap-2 font-medium"
+              className="hidden md:flex bg-blue-700 hover:bg-blue-800 text-white px-6 py-2.5 rounded-lg shadow-sm transition-all items-center gap-2 font-medium"
             >
               <span>+</span> Novo Médico
             </Link>
@@ -143,188 +133,298 @@ export default async function MedicosPage({ searchParams }: PageProps) {
 
         {/* LAYOUT GRID: SIDEBAR + CONTEÚDO */}
         <div className="flex flex-col md:flex-row items-start">
-          {/* MENU LATERAL (SIDEBAR) - Escondido na impressão */}
+          {/* SIDEBAR */}
           <div className="no-print w-full md:w-auto">
             <SpecialtySidebar specialties={allSpecialties} />
           </div>
 
-          {/* CONTEÚDO PRINCIPAL (LISTA) */}
+          {/* CONTEÚDO PRINCIPAL */}
           <div className="flex-1 w-full">
             <section className="mb-6 max-w-md no-print">
               <Search />
             </section>
 
-            {/* GRID DE CARDS */}
-            <section className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+            {/* --------------------------------------------------------- */}
+            {/* 🖥️ VERSÃO DESKTOP (TABELA) - Escondida no Mobile */}
+            {/* --------------------------------------------------------- */}
+            <div className="hidden md:block bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden print:block print:shadow-none print:border-0">
+              <table className="min-w-full divide-y divide-slate-200">
+                <thead className="bg-slate-50 print:bg-gray-100">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                      Médico
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                      Especialidade
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                      Contato
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                      Atendimento
+                    </th>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider no-print">
+                      Ações
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-slate-200">
+                  {doctors.map((doctor) => (
+                    <tr
+                      key={doctor.id}
+                      className="hover:bg-slate-50 transition-colors"
+                    >
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex items-center">
+                          <div className="h-10 w-10 flex-shrink-0 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center font-bold no-print">
+                            {doctor.firstName[0]}
+                          </div>
+                          <div className="ml-4">
+                            <div className="text-sm font-medium text-slate-900">
+                              {doctor.gender === "FEMALE" ? "Dra." : "Dr."}{" "}
+                              {doctor.firstName} {doctor.lastName}
+                            </div>
+                            <div className="text-xs text-slate-500">
+                              {
+                                DOCTOR_TYPE_LABELS[
+                                  doctor.type as keyof typeof DOCTOR_TYPE_LABELS
+                                ]
+                              }
+                            </div>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-slate-900">
+                          {doctor.specialty1}
+                        </div>
+                        {doctor.specialty2 && (
+                          <div className="text-xs text-slate-500">
+                            {doctor.specialty2}
+                          </div>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-slate-900">
+                          {doctor.phoneMobile}
+                        </div>
+                        <div className="text-xs text-slate-500">
+                          {doctor.city}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex gap-1 mb-1">
+                          {doctor.isSus && (
+                            <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-green-100 text-green-800">
+                              SUS
+                            </span>
+                          )}
+                          {doctor.hasHealthPlan && (
+                            <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-indigo-100 text-indigo-800">
+                              Conv.
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex gap-2 text-base text-slate-400 grayscale opacity-50">
+                          <span
+                            title="Adulto"
+                            className={
+                              doctor.acceptsAdult
+                                ? "grayscale-0 opacity-100"
+                                : ""
+                            }
+                          >
+                            👨
+                          </span>
+                          <span
+                            title="Criança"
+                            className={
+                              doctor.acceptsChild
+                                ? "grayscale-0 opacity-100"
+                                : ""
+                            }
+                          >
+                            🧒
+                          </span>
+                          <span
+                            title="Bebê"
+                            className={
+                              doctor.acceptsNewborn
+                                ? "grayscale-0 opacity-100"
+                                : ""
+                            }
+                          >
+                            👶
+                          </span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium no-print">
+                        <div className="flex justify-end items-center gap-3">
+                          <Link
+                            href={`/medicos/${doctor.id}/editar`}
+                            className="text-blue-600 hover:text-blue-900"
+                          >
+                            Editar
+                          </Link>
+                          <DeleteButton
+                            id={doctor.id}
+                            name={doctor.firstName}
+                          />
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* --------------------------------------------------------- */}
+            {/* 📱 VERSÃO MOBILE (CARDS) - Escondida no Desktop */}
+            {/* --------------------------------------------------------- */}
+            <div className="md:hidden space-y-4 print:hidden">
               {doctors.map((doctor) => (
                 <div
                   key={doctor.id}
-                  className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 hover:shadow-md transition-shadow duration-200 relative group flex flex-col"
+                  className="bg-white p-5 rounded-xl shadow-sm border border-slate-200"
                 >
-                  <span
-                    className={`absolute top-4 right-4 text-[10px] font-bold tracking-wider px-2 py-1 rounded-full uppercase z-10
-                    ${
-                      doctor.type === "COOPERATING"
-                        ? "bg-blue-50 text-blue-600"
-                        : doctor.type === "CONSULTANT"
-                        ? "bg-purple-50 text-purple-600"
-                        : "bg-slate-100 text-slate-500"
-                    }`}
-                  >
-                    {
-                      DOCTOR_TYPE_LABELS[
-                        doctor.type as keyof typeof DOCTOR_TYPE_LABELS
-                      ]
-                    }
-                  </span>
-
-                  <div className="mb-2 pr-32">
-                    <h2
-                      className="text-xl font-bold text-slate-900 line-clamp-2 min-h-[3.5rem] flex items-center"
-                      title={`${doctor.firstName} ${doctor.lastName}`}
+                  {/* Cabeçalho do Card */}
+                  <div className="flex justify-between items-start mb-4">
+                    <div className="flex items-center gap-3">
+                      <div className="h-12 w-12 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center font-bold text-lg">
+                        {doctor.firstName[0]}
+                      </div>
+                      <div>
+                        <h3 className="font-bold text-slate-900 text-lg leading-tight">
+                          {doctor.firstName} {doctor.lastName}
+                        </h3>
+                        <p className="text-sm text-blue-600 font-medium">
+                          {doctor.specialty1}
+                        </p>
+                      </div>
+                    </div>
+                    <Link
+                      href={`/medicos/${doctor.id}/editar`}
+                      className="p-2 -mr-2 text-slate-400 hover:text-blue-600"
                     >
-                      {(() => {
-                        const fullName = `${doctor.firstName} ${doctor.lastName}`;
-                        const hasPrefix =
-                          fullName.toLowerCase().startsWith("dr.") ||
-                          fullName.toLowerCase().startsWith("dra.");
-                        const automaticPrefix =
-                          doctor.gender === "FEMALE" ? "Dra." : "Dr.";
-                        return hasPrefix
-                          ? fullName
-                          : `${automaticPrefix} ${fullName}`;
-                      })()}
-                    </h2>
-                    <span className="inline-block text-sm text-slate-500 font-medium -mt-1">
-                      {doctor.specialty1}
-                    </span>
+                      ✏️
+                    </Link>
                   </div>
 
-                  <div className="space-y-3 text-sm text-slate-600 border-t border-slate-100 pt-4 flex-1">
-                    <div className="flex items-center gap-2">
-                      <span className="text-lg">📍</span>
-                      <span className="truncate">
-                        {doctor.city} - {doctor.state}
+                  {/* Informações */}
+                  <div className="grid grid-cols-2 gap-y-4 gap-x-2 text-sm mb-5 border-t border-b border-slate-50 py-3">
+                    <div>
+                      <span className="block text-xs font-semibold text-slate-400 uppercase">
+                        Cidade
                       </span>
+                      <span className="text-slate-700">{doctor.city}</span>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-lg">📞</span>
-                      <span className="font-medium">
-                        {doctor.phoneMobile || "Sem telefone"}
+                    <div>
+                      <span className="block text-xs font-semibold text-slate-400 uppercase">
+                        Atendimento
                       </span>
-                    </div>
-                    {(doctor.isSus || doctor.hasHealthPlan) && (
-                      <div className="flex flex-wrap gap-2 mt-4">
+                      <div className="flex gap-1 mt-0.5">
                         {doctor.isSus && (
-                          <span className="inline-flex items-center rounded-md bg-green-50 px-2 py-1 text-xs font-medium text-green-700 ring-1 ring-inset ring-green-600/20">
-                            🏥 SUS
+                          <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-green-100 text-green-800">
+                            SUS
                           </span>
                         )}
                         {doctor.hasHealthPlan && (
-                          <span className="inline-flex items-center rounded-md bg-indigo-50 px-2 py-1 text-xs font-medium text-indigo-700 ring-1 ring-inset ring-indigo-700/10">
-                            💳 Convênios
+                          <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-indigo-100 text-indigo-800">
+                            Conv.
                           </span>
                         )}
                       </div>
-                    )}
-                    <div
-                      className={`flex gap-3 text-xl text-slate-400 grayscale opacity-50 ${
-                        doctor.isSus || doctor.hasHealthPlan ? "mt-3" : "mt-4"
-                      }`}
-                    >
-                      <span
-                        title="Adulto"
-                        className={
-                          doctor.acceptsAdult ? "grayscale-0 opacity-100" : ""
-                        }
-                      >
-                        👨
-                      </span>
-                      <span
-                        title="Criança"
-                        className={
-                          doctor.acceptsChild ? "grayscale-0 opacity-100" : ""
-                        }
-                      >
-                        🧒
-                      </span>
-                      <span
-                        title="Recém-nascido"
-                        className={
-                          doctor.acceptsNewborn ? "grayscale-0 opacity-100" : ""
-                        }
-                      >
-                        👶
-                      </span>
                     </div>
-                    <div className="mt-4 flex items-center gap-1 text-[10px] text-slate-400 font-medium no-print">
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        viewBox="0 0 20 20"
-                        fill="currentColor"
-                        className="w-3 h-3"
-                      >
-                        <path
-                          fillRule="evenodd"
-                          d="M10 18a8 8 0 100-16 8 8 0 000 16zm.75-13a.75.75 0 00-1.5 0v5c0 .414.336.75.75.75h4a.75.75 0 000-1.5h-3.25V5z"
-                          clipRule="evenodd"
-                        />
-                      </svg>
-                      <span>
-                        Atualizado em:{" "}
-                        {new Date(doctor.updatedAt).toLocaleDateString(
-                          "pt-BR",
-                          {
-                            day: "2-digit",
-                            month: "2-digit",
-                            year: "2-digit",
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          }
-                        )}
+                    <div className="col-span-2 flex items-center gap-2">
+                      <span className="text-xs font-semibold text-slate-400 uppercase">
+                        Público:
                       </span>
+                      <div className="flex gap-2 text-base text-slate-400 grayscale opacity-50">
+                        <span
+                          title="Adulto"
+                          className={
+                            doctor.acceptsAdult ? "grayscale-0 opacity-100" : ""
+                          }
+                        >
+                          👨
+                        </span>
+                        <span
+                          title="Criança"
+                          className={
+                            doctor.acceptsChild ? "grayscale-0 opacity-100" : ""
+                          }
+                        >
+                          🧒
+                        </span>
+                        <span
+                          title="Bebê"
+                          className={
+                            doctor.acceptsNewborn
+                              ? "grayscale-0 opacity-100"
+                              : ""
+                          }
+                        >
+                          👶
+                        </span>
+                      </div>
                     </div>
                   </div>
 
-                  <div className="mt-4 pt-3 border-t border-slate-50 flex justify-between items-center opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity no-print">
-                    <DeleteButton id={doctor.id} name={doctor.firstName} />
-                    <Link
-                      href={`/medicos/${doctor.id}/editar`}
-                      className="text-blue-600 hover:text-blue-800 text-sm font-medium flex items-center gap-1 hover:underline"
-                    >
-                      ✏️ Editar
-                    </Link>
+                  {/* Botões de Ação Mobile */}
+                  <div className="flex gap-3">
+                    {doctor.phoneMobile ? (
+                      <>
+                        <a
+                          href={`tel:${doctor.phoneMobile.replace(/\D/g, "")}`}
+                          className="flex-1 bg-white border border-slate-200 text-slate-700 py-3 rounded-lg text-center text-sm font-semibold flex items-center justify-center gap-2 active:bg-slate-50 shadow-sm"
+                        >
+                          📞 Ligar
+                        </a>
+                        <a
+                          href={`https://wa.me/55${doctor.phoneMobile.replace(
+                            /\D/g,
+                            ""
+                          )}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="flex-1 bg-green-600 text-white py-3 rounded-lg text-center text-sm font-semibold flex items-center justify-center gap-2 active:bg-green-700 shadow-sm"
+                        >
+                          💬 WhatsApp
+                        </a>
+                      </>
+                    ) : (
+                      <span className="w-full text-center text-slate-400 text-sm py-2 bg-slate-50 rounded-lg">
+                        Sem telefone cadastrado
+                      </span>
+                    )}
                   </div>
                 </div>
               ))}
+            </div>
 
-              {/* Estado Vazio */}
-              {doctors.length === 0 && (
-                <div className="col-span-full bg-white rounded-xl border border-dashed border-slate-300 p-12 text-center no-print">
-                  <div className="text-4xl mb-4">🔍</div>
-                  <h3 className="text-lg font-medium text-slate-900">
-                    Nenhum médico encontrado
-                  </h3>
-                  <p className="text-slate-500 mt-1">
-                    Nenhum médico com a especialidade{" "}
-                    <strong>{especialidadeFiltro}</strong> foi encontrado.
-                  </p>
-                  <Link
-                    href="/medicos"
-                    className="text-blue-600 hover:underline mt-2 block"
-                  >
-                    Limpar filtros
-                  </Link>
-                </div>
-              )}
-            </section>
+            {/* Mensagem Vazia */}
+            {doctors.length === 0 && (
+              <div className="bg-white rounded-xl border border-dashed border-slate-300 p-12 text-center no-print">
+                <div className="text-4xl mb-4">🔍</div>
+                <h3 className="text-lg font-medium text-slate-900">
+                  Nenhum médico encontrado
+                </h3>
+                <Link
+                  href="/medicos"
+                  className="text-blue-600 hover:underline mt-2 block"
+                >
+                  Limpar filtros
+                </Link>
+              </div>
+            )}
 
             <div className="mt-8 no-print">
               <Pagination totalPages={totalPages} />
             </div>
           </div>
         </div>
-        {/* BOTÃO FLUTUANTE (Só aparece no mobile) */}
+
+        {/* FAB (Floating Action Button) - Só aparece no mobile */}
         <FAB href="/medicos/novo" label="Adicionar Médico" />
       </main>
     </div>
