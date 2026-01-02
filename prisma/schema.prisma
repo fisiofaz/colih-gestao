@@ -58,7 +58,8 @@ model Doctor {
   
   // Parte 2: Dados Pessoais
   firstName         String      
-  lastName          String      
+  lastName          String   
+  crm               String?   
   phoneHome         String?
   phoneMobile       String?     
   email             String? 

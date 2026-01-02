@@ -1,22 +1,18 @@
-"use client";
-
-import Link from "next/link";
 import DoctorForm from "@/app/components/doctors/DoctorForm";
+import { auth } from "@/auth";
+import { redirect } from "next/navigation";
 
-export default function NovoMedicoPage() {
-  
+export default async function NewDoctorPage() {
+  const session = await auth();
+  if (!session) redirect("/login");
+
   return (
-    <div className="min-h-screen p-8 bg-slate-50">
-      <div className="max-w-4xl mx-auto">
-        <div className="mb-8 flex items-center gap-4">
-          <Link
-            href="/medicos"
-            className="text-slate-500 hover:text-blue-700 flex items-center gap-1 text-sm font-medium"
-          >
-            ← Voltar
-          </Link>
-          <DoctorForm />
-        </div>
+    <div className="min-h-screen bg-slate-50 p-4 md:p-8">
+      <div className="max-w-3xl mx-auto">
+        {" "}
+        {/* max-w-3xl limita largura no PC, mas no mobile é 100% */}
+        <h1 className="text-2xl font-bold text-slate-800 mb-6">Novo Médico</h1>
+        <DoctorForm />
       </div>
     </div>
   );

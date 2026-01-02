@@ -10,11 +10,10 @@ import { AuthError } from "next-auth";
 import { Prisma, DoctorType, UserRole } from "@prisma/client";
 import { doctorSchema } from "@/lib/schemas";
 import { logAudit } from "@/lib/logger";
-import { put, del } from "@vercel/blob"; 
+import { put, del } from "@vercel/blob";
 import { hash } from "bcryptjs";
 
-
-// --- TIPO GLOBAL PARA O ESTADO DOS FORMULÁRIOS ---
+// --- TIPO GLOBAL PARA O ESTADO DOS FORMULÁRIOS (LEGADO PARA OUTRAS PÁGINAS) ---
 export type State = {
   errors?: {
     [key: string]: string[];
@@ -23,8 +22,6 @@ export type State = {
 } | null;
 
 // --- SCHEMAS DE VALIDAÇÃO (ZOD) ---
-// O DoctorSchema estamos importando de lib/schemas para manter coerência
-
 const CreateUserSchema = z.object({
   name: z.string().min(3, "Nome deve ter pelo menos 3 letras"),
   email: z.string().email("Email inválido"),
@@ -32,20 +29,21 @@ const CreateUserSchema = z.object({
   role: z.enum(["COLIH", "GVP"]),
 });
 
-const ChangePasswordSchema = z.object({
-  password: z.string().min(6, "A nova senha deve ter no mínimo 6 caracteres"),
-  confirmPassword: z.string().min(6),
-}).refine((data) => data.password === data.confirmPassword, {
-  message: "As senhas não conferem",
-  path: ["confirmPassword"],
-});
+const ChangePasswordSchema = z
+  .object({
+    password: z.string().min(6, "A nova senha deve ter no mínimo 6 caracteres"),
+    confirmPassword: z.string().min(6),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: "As senhas não conferem",
+    path: ["confirmPassword"],
+  });
 
 // =========================================================
 // 1. DASHBOARD E LEITURA
 // =========================================================
 
 export async function getDashboardData() {
- 
   const session = await auth();
 
   if (!session?.user) {
@@ -62,10 +60,8 @@ export async function getDashboardData() {
   const isGVP = role === "GVP";
 
   try {
-    // Buscamos tudo em paralelo para ser rápido
     const [colaboradores, consultores, totalMembros, membrosCOLIH, membrosGVP] =
       await Promise.all([
-        // 1. Médicos (Só buscamos se NÃO for GVP para economizar banco)
         !isGVP
           ? prisma.doctor.findMany({
               where: { type: "COOPERATING" },
@@ -82,19 +78,18 @@ export async function getDashboardData() {
             })
           : Promise.resolve([]),
 
-        // 2. Estatísticas de Membros
         prisma.user.count(),
         prisma.user.count({ where: { role: UserRole.COLIH } }),
         prisma.user.count({ where: { role: UserRole.GVP } }),
       ]);
 
     return {
-      allowed: !isGVP, // Define se pode ver médicos
+      allowed: !isGVP,
       userRole: role,
       colaboradores,
       consultores,
       stats: {
-        medicos: colaboradores.length + consultores.length, // Apenas dos listados/totais
+        medicos: colaboradores.length + consultores.length,
         membros: {
           total: totalMembros,
           colih: membrosCOLIH,
@@ -115,45 +110,45 @@ export async function getDashboardData() {
 }
 
 // =========================================================
-// 2. AÇÕES DE MÉDICOS (CUD)
+// 2. AÇÕES DE MÉDICOS (CUD) - ATUALIZADO
 // =========================================================
 
-export async function createDoctor(prevState: State, formData: FormData) {
-  // 1. Segurança: Verificar Sessão
+// Agora aceita apenas formData (sem prevState) para funcionar com o novo formulário
+export async function createDoctor(formData: FormData) {
   const session = await auth();
   if (!session?.user?.id || session.user.role === "GVP") {
-    return {
-      message: "Permissão negada. Apenas membros COLIH podem cadastrar.",
-    };
+    return { success: false, message: "Permissão negada." };
   }
 
   const rawFormData = Object.fromEntries(formData.entries());
 
-  // Tratamento dos Checkboxes (HTML envia "on" ou nada)
   const dataToValidate = {
     ...rawFormData,
+    // Converte os checkboxes para booleanos
     acceptsAdult: rawFormData.acceptsAdult === "on",
     acceptsChild: rawFormData.acceptsChild === "on",
     acceptsNewborn: rawFormData.acceptsNewborn === "on",
     isSus: rawFormData.isSus === "on",
     hasHealthPlan: rawFormData.hasHealthPlan === "on",
-    responsibleMember: rawFormData.responsibleMember,
+    // O campo phoneHome virá automaticamente dentro de rawFormData se o input tiver name="phoneHome"
   };
 
-  // 2. Validação com Zod
   const validatedFields = doctorSchema.safeParse(dataToValidate);
 
   if (!validatedFields.success) {
+    // Pega a primeira mensagem de erro para simplificar o feedback
+    const firstError = Object.values(
+      validatedFields.error.flatten().fieldErrors
+    )[0]?.[0];
     return {
-      errors: validatedFields.error.flatten().fieldErrors,
-      message: "Faltam campos obrigatórios. Verifique o formulário.",
+      success: false,
+      message: firstError || "Erro de validação nos campos.",
     };
   }
 
   try {
     const { type, ...rest } = validatedFields.data;
 
-    // 3. Inserção no Banco (Incluindo createdById)
     await prisma.doctor.create({
       data: {
         ...rest,
@@ -161,33 +156,27 @@ export async function createDoctor(prevState: State, formData: FormData) {
         createdById: session.user.id,
       },
     });
-    // --- LOG DE AUDITORIA ---
+
     await logAudit(
       "CREATE",
       "DOCTOR",
       `Criou médico: ${rest.firstName} ${rest.lastName} (${rest.specialty1})`
     );
+
+    revalidatePath("/medicos");
+    // Não usamos redirect aqui, o Client Component fará isso ao receber success: true
+    return { success: true, message: "Médico criado com sucesso!" };
   } catch (error) {
     console.error(error);
-    return {
-      message: "Erro no Banco de Dados: Falha ao criar médico.",
-    };
+    return { success: false, message: "Erro ao salvar no banco de dados." };
   }
-
-  revalidatePath("/");
-  revalidatePath("/medicos");
-  redirect("/medicos");
 }
 
-export async function updateDoctor(
-  id: string,
-  prevState: State,
-  formData: FormData
-) {
-  // Segurança
+// Atualizado para receber apenas (id, formData) - Resolve o erro "3 arguments expected"
+export async function updateDoctor(id: string, formData: FormData) {
   const session = await auth();
   if (!session?.user || session.user.role === "GVP") {
-    return { message: "Acesso negado." };
+    return { success: false, message: "Acesso negado." };
   }
 
   const rawFormData = Object.fromEntries(formData.entries());
@@ -199,50 +188,47 @@ export async function updateDoctor(
     acceptsNewborn: rawFormData.acceptsNewborn === "on",
     isSus: rawFormData.isSus === "on",
     hasHealthPlan: rawFormData.hasHealthPlan === "on",
-    responsibleMember: rawFormData.responsibleMember,
   };
 
   const validatedFields = doctorSchema.safeParse(dataToValidate);
 
   if (!validatedFields.success) {
+    const firstError = Object.values(
+      validatedFields.error.flatten().fieldErrors
+    )[0]?.[0];
     return {
-      errors: validatedFields.error.flatten().fieldErrors,
-      message: "Erro na validação dos campos.",
+      success: false,
+      message: firstError || "Erro na validação dos campos.",
     };
   }
 
   try {
     const { type, ...rest } = validatedFields.data;
 
-    // Convertemos para o tipo correto do Prisma
-    const dataUpdate: Prisma.DoctorUpdateInput = {
-      ...rest,
-      type: type as DoctorType,
-    };
-
     await prisma.doctor.update({
       where: { id },
-      data: dataUpdate,
+      data: {
+        ...rest,
+        type: type as DoctorType,
+      },
     });
 
-    // --- LOG DE AUDITORIA ---
     await logAudit(
       "UPDATE",
       "DOCTOR",
       `Editou médico ID: ${id} - Nome: ${rest.firstName} ${rest.lastName}`
     );
-  } catch (error) {
-    return { message: "Erro ao atualizar médico." };
-  }
 
-  revalidatePath("/");
-  revalidatePath("/medicos");
-  redirect("/medicos");
+    revalidatePath("/medicos");
+    return { success: true, message: "Médico atualizado com sucesso!" };
+  } catch (error) {
+    console.error(error);
+    return { success: false, message: "Erro ao atualizar médico." };
+  }
 }
 
 export async function deleteDoctor(id: string) {
   const session = await auth();
-  // Proteção extra para delete
   if (!session?.user || session.user.role === "GVP") {
     return { success: false, error: "Acesso negado" };
   }
@@ -251,18 +237,13 @@ export async function deleteDoctor(id: string) {
       where: { id },
     });
 
-    // --- LOG DE AUDITORIA ---
-    await logAudit(
-      "DELETE", 
-      "DOCTOR", 
-      `Excluiu médico ID: ${id}`
-    );
+    await logAudit("DELETE", "DOCTOR", `Excluiu médico ID: ${id}`);
 
+    revalidatePath("/medicos");
+    return { success: true };
   } catch (error) {
     return { success: false, error: "Erro ao excluir." };
   }
-  revalidatePath("/medicos");
-  revalidatePath("/");
 }
 
 // =========================================================
@@ -292,8 +273,8 @@ export async function handleLogout() {
   await signOut({ redirectTo: "/login" });
 }
 
+// Mantivemos a estrutura antiga (prevState) aqui pois não alteramos o formulário de Membros ainda
 export async function createUser(prevState: State, formData: FormData) {
-  // Segurança: Apenas quem já é COLIH ou ADMIN pode criar outros usuários
   const session = await auth();
   if (session?.user?.role === "GVP") {
     return { message: "Você não tem permissão para criar novos usuários." };
@@ -318,7 +299,6 @@ export async function createUser(prevState: State, formData: FormData) {
   try {
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Criação manual garantindo que os campos batem com o banco
     await prisma.user.create({
       data: {
         name,
@@ -357,19 +337,17 @@ export async function updatePassword(prevState: State, formData: FormData) {
   try {
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Atualiza a senha E remove a obrigatoriedade de troca
     await prisma.user.update({
       where: { email: session.user.email },
       data: {
         password: hashedPassword,
-        mustChangePassword: false, 
+        mustChangePassword: false,
       },
     });
   } catch (error) {
     return { message: "Erro ao atualizar senha." };
   }
 
-  // Redireciona para a home
   redirect("/");
 }
 
@@ -384,23 +362,20 @@ export async function uploadDocument(doctorId: string, formData: FormData) {
   }
 
   const file = formData.get("file") as File;
-  
+
   if (!file || file.size === 0) {
     return { message: "Nenhum arquivo selecionado." };
   }
 
-  // Limite de 4MB (Opcional, mas bom para segurança)
   if (file.size > 4 * 1024 * 1024) {
     return { message: "Arquivo muito grande. Máximo 4MB." };
   }
 
   try {
-    // Envia para a Vercel (Nuvem)
     const blob = await put(file.name, file, {
-      access: 'public',
+      access: "public",
     });
 
-    // Salva o link no Banco
     await prisma.document.create({
       data: {
         url: blob.url,
@@ -409,9 +384,11 @@ export async function uploadDocument(doctorId: string, formData: FormData) {
       },
     });
 
-    // Auditoria
-    await logAudit("CREATE", "DOCTOR", `Anexou arquivo: ${file.name} ao médico ID: ${doctorId}`);
-
+    await logAudit(
+      "CREATE",
+      "DOCTOR",
+      `Anexou arquivo: ${file.name} ao médico ID: ${doctorId}`
+    );
   } catch (error) {
     console.error(error);
     return { message: "Erro ao fazer upload." };
@@ -420,20 +397,18 @@ export async function uploadDocument(doctorId: string, formData: FormData) {
   revalidatePath(`/medicos/${doctorId}/editar`);
 }
 
-export async function deleteDocument(documentId: string, doctorId: string, fileUrl: string) {
+export async function deleteDocument(
+  documentId: string,
+  doctorId: string,
+  fileUrl: string
+) {
   const session = await auth();
   if (!session?.user || session.user.role === "GVP") return;
 
   try {
-    // Deleta do Banco
     await prisma.document.delete({ where: { id: documentId } });
-
-    // Deleta da Nuvem (Vercel)
     await del(fileUrl);
-
-    // Auditoria
     await logAudit("DELETE", "DOCTOR", `Removeu arquivo ID: ${documentId}`);
-
   } catch (error) {
     console.error("Erro ao deletar arquivo", error);
   }
@@ -447,9 +422,10 @@ export async function deleteDocument(documentId: string, doctorId: string, fileU
 
 export async function createVisit(doctorId: string, formData: FormData) {
   const session = await auth();
-  if (!session?.user || session.user.role === "GVP") return { message: "Sem permissão" };
+  if (!session?.user || session.user.role === "GVP")
+    return { message: "Sem permissão" };
 
-  const dateString = formData.get("date") as string; // Vem como "2023-12-25T14:00"
+  const dateString = formData.get("date") as string;
   const notes = formData.get("notes") as string;
 
   if (!dateString) return { message: "Data é obrigatória" };
@@ -460,12 +436,17 @@ export async function createVisit(doctorId: string, formData: FormData) {
         date: new Date(dateString),
         notes,
         doctorId,
-        status: "PENDING"
-      }
+        status: "PENDING",
+      },
     });
 
-    await logAudit("CREATE", "DOCTOR", `Agendou visita para ${new Date(dateString).toLocaleDateString()} (Doc ID: ${doctorId})`);
-
+    await logAudit(
+      "CREATE",
+      "DOCTOR",
+      `Agendou visita para ${new Date(
+        dateString
+      ).toLocaleDateString()} (Doc ID: ${doctorId})`
+    );
   } catch (error) {
     return { message: "Erro ao agendar visita." };
   }
@@ -473,7 +454,11 @@ export async function createVisit(doctorId: string, formData: FormData) {
   revalidatePath(`/medicos/${doctorId}/editar`);
 }
 
-export async function toggleVisitStatus(visitId: string, currentStatus: string, doctorId: string) {
+export async function toggleVisitStatus(
+  visitId: string,
+  currentStatus: string,
+  doctorId: string
+) {
   const session = await auth();
   if (!session?.user || session.user.role === "GVP") return;
 
@@ -482,7 +467,7 @@ export async function toggleVisitStatus(visitId: string, currentStatus: string, 
   try {
     await prisma.visit.update({
       where: { id: visitId },
-      data: { status: newStatus }
+      data: { status: newStatus },
     });
   } catch (error) {
     console.error("Erro ao atualizar status", error);
@@ -516,7 +501,6 @@ export async function updateUser(id: string, formData: FormData) {
   const role = formData.get("role") as UserRole;
   const password = formData.get("password") as string;
 
-  // Prepara os dados básicos
   const dataToUpdate: Prisma.UserUpdateInput = {
     name,
     email,
@@ -533,11 +517,10 @@ export async function updateUser(id: string, formData: FormData) {
     dataToUpdate.password = await hash(password, 12);
   }
 
-
   try {
     await prisma.user.update({
       where: { id },
-      data: dataToUpdate, // <--- Usa o objeto dinâmico
+      data: dataToUpdate,
     });
 
     revalidatePath("/membros");
