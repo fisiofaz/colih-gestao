@@ -3,7 +3,7 @@ import Credentials from "next-auth/providers/credentials";
 import { authConfig } from "./auth.config";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
-import * as bcrypt from "bcryptjs";
+import bcrypt from "bcryptjs";
 import type { User, UserRole } from "@prisma/client";
 
 async function getUser(email: string): Promise<User | null> {
@@ -33,12 +33,12 @@ export const { auth, signIn, signOut } = NextAuth({
           const { email, password } = parsedCredentials.data;
           // Busca o usuário no banco
           const user = await getUser(email);
-          if (!user) return null;
+          if (!user || !user.password) return null;
 
           // Verifica se a senha bate (usando bcrypt)
           const passwordsMatch = await bcrypt.compare(
-            password,
-            user.password as string
+            credentials.password as string,
+            user.password
           );
 
           if (passwordsMatch) return user;
