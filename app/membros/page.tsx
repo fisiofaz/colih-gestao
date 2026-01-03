@@ -3,9 +3,9 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import { UserRole } from "@prisma/client";
-import UserSidebar from "@/app/components/users/user-sidebar"; 
-import Search from "../medicos/components/search"; 
-import Pagination from "../medicos/components/pagination"; 
+import UserSidebar from "@/app/components/users/user-sidebar";
+import Search from "../medicos/components/search";
+import Pagination from "../medicos/components/pagination";
 import { DeleteUserButton } from "@/app/membros/components/delete-user-button";
 
 interface PageProps {
@@ -19,10 +19,14 @@ interface PageProps {
 export default async function MembrosPage({ searchParams }: PageProps) {
   const session = await auth();
 
-  // Apenas ADMIN pode ver lista de membros
-  if (!session || session.user?.role !== "ADMIN") {
+  // 1. REGRA DE ACESSO:
+  // GVP é barrado. COLIH e ADMIN podem entrar.
+  if (!session || session.user?.role === "GVP") {
     redirect("/");
   }
+
+  // Variável para controlar o que aparece na tela
+  const isAdmin = session.user.role === "ADMIN";
 
   const ITEMS_PER_PAGE = 10;
   const params = await searchParams;
@@ -32,9 +36,8 @@ export default async function MembrosPage({ searchParams }: PageProps) {
   const currentPage = Number(params.page) || 1;
   const skip = (currentPage - 1) * ITEMS_PER_PAGE;
 
-  // CONSTRUIR FILTRO
   const whereCondition = {
-    role: roleFiltro, // Filtra se tiver role na URL
+    role: roleFiltro,
     OR: query
       ? [
           { name: { contains: query, mode: "insensitive" as const } },
@@ -43,20 +46,15 @@ export default async function MembrosPage({ searchParams }: PageProps) {
       : undefined,
   };
 
-  // BUSCAR DADOS (Lista + Contagens para o Menu)
   const [users, totalCount, countColih, countGvp, countAdmin] =
     await Promise.all([
-      // Lista de Usuários da Página
       prisma.user.findMany({
         where: whereCondition,
         orderBy: { name: "asc" },
         take: ITEMS_PER_PAGE,
         skip: skip,
       }),
-      // Total atual (filtrado) para paginação
       prisma.user.count({ where: whereCondition }),
-
-      // Contagens para o Sidebar (Globais)
       prisma.user.count({ where: { role: "COLIH" } }),
       prisma.user.count({ where: { role: "GVP" } }),
       prisma.user.count({ where: { role: "ADMIN" } }),
@@ -65,7 +63,6 @@ export default async function MembrosPage({ searchParams }: PageProps) {
   const totalUsersGlobal = countColih + countGvp + countAdmin;
   const totalPages = Math.ceil(totalCount / ITEMS_PER_PAGE);
 
-  // Labels amigáveis para os cargos
   const roleLabels: Record<string, string> = {
     ADMIN: "Administrador",
     COLIH: "Membro COLIH",
@@ -79,7 +76,7 @@ export default async function MembrosPage({ searchParams }: PageProps) {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 p-8">
+    <div className="min-h-screen bg-slate-50 p-4 md:p-8">
       <main className="max-w-7xl mx-auto">
         <header className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
           <div>
@@ -87,21 +84,22 @@ export default async function MembrosPage({ searchParams }: PageProps) {
               Gerenciar Membros
             </h1>
             <p className="text-slate-500 mt-1">
-              Controle de acesso e permissões do sistema
+              Visualização dos membros do sistema
             </p>
           </div>
 
-          <Link
-            href="/membros/novo" // Supondo que você tenha ou criará essa página
-            className="bg-slate-900 hover:bg-slate-800 text-white px-5 py-2.5 rounded-lg shadow-sm transition-all flex items-center gap-2 font-medium"
-          >
-            <span>+</span> Novo Membro
-          </Link>
+          {/* SÓ ADMIN VÊ O BOTÃO DE NOVO MEMBRO */}
+          {isAdmin && (
+            <Link
+              href="/membros/novo"
+              className="bg-slate-900 hover:bg-slate-800 text-white px-5 py-2.5 rounded-lg shadow-sm transition-all flex items-center gap-2 font-medium"
+            >
+              <span>+</span> Novo Membro
+            </Link>
+          )}
         </header>
 
-        {/* LAYOUT: SIDEBAR + LISTA */}
         <div className="flex flex-col md:flex-row items-start gap-6">
-          {/* MENU LATERAL */}
           <div className="w-full md:w-auto">
             <UserSidebar
               counts={{
@@ -113,7 +111,6 @@ export default async function MembrosPage({ searchParams }: PageProps) {
             />
           </div>
 
-          {/* CONTEÚDO */}
           <div className="flex-1 w-full">
             <section className="mb-6 max-w-md">
               <Search placeholder="Buscar por nome ou email..." />
@@ -126,7 +123,8 @@ export default async function MembrosPage({ searchParams }: PageProps) {
                     <th className="px-6 py-4">Nome</th>
                     <th className="px-6 py-4">Email</th>
                     <th className="px-6 py-4">Função</th>
-                    <th className="px-6 py-4 text-right">Ações</th>
+                    {/* SÓ ADMIN VÊ O CABEÇALHO DA COLUNA AÇÕES */}
+                    {isAdmin && <th className="px-6 py-4 text-right">Ações</th>}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -148,30 +146,34 @@ export default async function MembrosPage({ searchParams }: PageProps) {
                           {roleLabels[user.role] || user.role}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-right">
-                        <div className="w-full md:w-auto">
-                          <Link
-                            href={`/membros/${user.id}/editar`}
-                            className="text-blue-600 hover:text-blue-800 font-medium hover:underline"
-                          >
-                            Editar
-                          </Link>
-                        </div>
-                        {/* Lógica para não deixar excluir a si mesmo */}
-                        {session.user?.id !== user.id && (
-                          <DeleteUserButton
-                            id={user.id}
-                            name={user.name || "Usuário"}
-                          />
-                        )}
-                      </td>
+
+                      {/* SÓ ADMIN VÊ OS BOTÕES DE AÇÃO */}
+                      {isAdmin && (
+                        <td className="px-6 py-4 text-right">
+                          <div className="flex justify-end items-center gap-3">
+                            <Link
+                              href={`/membros/${user.id}/editar`}
+                              className="text-blue-600 hover:text-blue-800 font-medium hover:underline"
+                            >
+                              Editar
+                            </Link>
+
+                            {session.user?.id !== user.id && (
+                              <DeleteUserButton
+                                id={user.id}
+                                name={user.name || "Usuário"}
+                              />
+                            )}
+                          </div>
+                        </td>
+                      )}
                     </tr>
                   ))}
 
                   {users.length === 0 && (
                     <tr>
                       <td
-                        colSpan={4}
+                        colSpan={isAdmin ? 4 : 3}
                         className="px-6 py-12 text-center text-slate-500"
                       >
                         Nenhum membro encontrado neste filtro.

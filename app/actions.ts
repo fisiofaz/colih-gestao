@@ -279,10 +279,9 @@ export async function handleLogout() {
 
 export async function createUser(prevState: State, formData: FormData) {
   const session = await auth();
-  if (session?.user?.role === "GVP") {
+  if (session?.user?.role !== "ADMIN") {
     return { message: "Você não tem permissão para criar novos usuários." };
   }
-
   const validatedFields = CreateUserSchema.safeParse({
     name: formData.get("name"),
     email: formData.get("email"),
@@ -361,7 +360,7 @@ export async function deleteUser(userId: string) {
   const session = await auth();
   
   // 1. Verifica permissão
-  if (!session?.user || session.user.role === "GVP") {
+  if (!session?.user || session.user.role !== "ADMIN") {
     return { success: false, message: "Permissão negada." };
   }
 
