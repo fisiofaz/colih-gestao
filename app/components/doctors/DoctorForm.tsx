@@ -141,12 +141,11 @@ export default function DoctorForm({ doctor }: DoctorFormProps) {
           {/* Celular - Com teclado numérico no mobile */}
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">
-              Celular / WhatsApp *
+              Celular / WhatsApp 
             </label>
             <input
               name="phoneMobile"
               defaultValue={doctor?.phoneMobile || ""}
-              required
               inputMode="numeric"
               placeholder="(11) 99999-9999"
               className="w-full rounded-lg border-slate-300 focus:ring-blue-500 focus:border-blue-500"
