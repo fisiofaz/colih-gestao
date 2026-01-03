@@ -14,6 +14,35 @@ export default function DoctorForm({ doctor }: DoctorFormProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const BRAZIL_STATES = [
+    { value: "AC", label: "Acre" },
+    { value: "AL", label: "Alagoas" },
+    { value: "AP", label: "Amapá" },
+    { value: "AM", label: "Amazonas" },
+    { value: "BA", label: "Bahia" },
+    { value: "CE", label: "Ceará" },
+    { value: "DF", label: "Distrito Federal" },
+    { value: "ES", label: "Espírito Santo" },
+    { value: "GO", label: "Goiás" },
+    { value: "MA", label: "Maranhão" },
+    { value: "MT", label: "Mato Grosso" },
+    { value: "MS", label: "Mato Grosso do Sul" },
+    { value: "MG", label: "Minas Gerais" },
+    { value: "PA", label: "Pará" },
+    { value: "PB", label: "Paraíba" },
+    { value: "PR", label: "Paraná" },
+    { value: "PE", label: "Pernambuco" },
+    { value: "PI", label: "Piauí" },
+    { value: "RJ", label: "Rio de Janeiro" },
+    { value: "RN", label: "Rio Grande do Norte" },
+    { value: "RS", label: "Rio Grande do Sul" },
+    { value: "RO", label: "Rondônia" },
+    { value: "RR", label: "Roraima" },
+    { value: "SC", label: "Santa Catarina" },
+    { value: "SP", label: "São Paulo" },
+    { value: "SE", label: "Sergipe" },
+    { value: "TO", label: "Tocantins" },
+  ];
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -158,14 +187,14 @@ export default function DoctorForm({ doctor }: DoctorFormProps) {
             </label>
             <select
               name="state"
-              defaultValue={doctor?.state || "SP"}
+              defaultValue={doctor?.state || "RS"}
               className="w-full rounded-lg border-slate-300 focus:ring-blue-500 focus:border-blue-500"
             >
-              <option value="SP">São Paulo</option>
-              <option value="RJ">Rio de Janeiro</option>
-              <option value="MG">Minas Gerais</option>
-              <option value="ES">Espírito Santo</option>
-              {/* Adicione outros se necessário */}
+              {BRAZIL_STATES.map((uf) => (
+                <option key={uf.value} value={uf.value}>
+                  {uf.label} ({uf.value})
+                </option>
+              ))}
             </select>
           </div>
 
