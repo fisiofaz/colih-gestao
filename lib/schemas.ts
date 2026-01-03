@@ -1,50 +1,39 @@
-// lib/schemas.ts
 import { z } from "zod";
 
 export const userSchema = z.object({
   name: z.string().min(2, "Nome obrigatório"),
   email: z.string().email("E-mail inválido"),
-  role: z.enum(["ADMIN", "COLIH", "GVP"], {
-    errorMap: () => ({ message: "Selecione um nível de permissão válido" }),
-  }),
+  role: z.enum(["ADMIN", "COLIH", "GVP"]),
 });
 
 // Aqui definimos as regras de validação baseadas no PDF
 export const doctorSchema = z.object({
   // Parte 1 e 2: Dados Pessoais
-  firstName: z.string().min(2, "Nome deve ter pelo menos 2 letras"),
-  lastName: z.string().min(2, "Sobrenome deve ter pelo menos 2 letras"),
+  firstName: z.string().min(2, "Nome é obrigatório"),
+  lastName: z.string().min(2, "Sobrenome é obrigatório"),
 
-  // Enums precisam bater com o Prisma
-  type: z.enum(["COOPERATING", "CONSULTANT", "OTHER"], {
-    errorMap: () => ({ message: "Selecione um tipo de médico" }),
-  }),
-  gender: z.enum(["MALE", "FEMALE"], {
-    errorMap: () => ({ message: "Selecione o sexo" }),
-  }),
-
-  // Contato (Opcionais, mas validados se preenchidos)
+  // --- Contato ---
   email: z.string().email("E-mail inválido").optional().or(z.literal("")),
-  phoneMobile: z.string().optional(),
-  phoneHome: z.string().optional(),
+  phoneMobile: z.string().optional().or(z.literal("")),
+  phoneHome: z.string().optional().or(z.literal("")),
 
   // Endereço (Obrigatórios segundo o PDF)
-  address: z.string().min(5, "Endereço muito curto"),
+  address: z.string().optional().or(z.literal("")),
   city: z.string().min(2, "Cidade obrigatória"),
   state: z.string().length(2, "Use a sigla do estado (ex: RS)"),
-  zipCode: z.string().min(8, "CEP inválido"),
-  country: z.string().default("Brasil"),
 
-  // Parte 3: Especialidades
-  specialty1: z.string().min(3, "Pelo menos uma especialidade é obrigatória"),
-  specialty2: z.string().optional(),
+  // --- Profissional ---
+  crm: z.string().optional().or(z.literal("")),
+  specialty1: z.string().min(3, "Especialidade obrigatória"),
+  specialty2: z.string().optional().or(z.literal("")),
 
-  // Booleans (Checkboxes)
-  acceptsAdult: z.boolean().default(false),
-  acceptsChild: z.boolean().default(false),
-  acceptsNewborn: z.boolean().default(false),
-  isSus: z.boolean().optional(),
-  hasHealthPlan: z.boolean().optional(),
+  // --- Checkboxes ---
+  acceptsAdult: z.boolean(),
+  acceptsChild: z.boolean(),
+  acceptsNewborn: z.boolean(),
+  isSus: z.boolean(),
+  hasHealthPlan: z.boolean(),
+
   responsibleMember: z.string().optional().nullable(),
 });
 
