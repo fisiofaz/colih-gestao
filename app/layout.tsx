@@ -1,9 +1,7 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
-import Link from "next/link";
 import { auth } from "@/auth";
-import { handleLogout } from "./actions";
 import { Toaster } from "sonner";
 import Navbar from "@/app/components/ui/navbar";
 
@@ -12,6 +10,13 @@ const inter = Inter({ subsets: ["latin"] });
 export const metadata: Metadata = {
   title: "COLIH Gestão",
   description: "Sistema de gestão para COLIH",
+};
+
+export const viewport: Viewport = {
+  themeColor: "#2563eb", // Azul do topo
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
 };
 
 export default async function RootLayout({
