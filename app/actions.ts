@@ -12,6 +12,10 @@ import { doctorSchema } from "@/lib/schemas";
 import { logAudit } from "@/lib/logger";
 import { put, del } from "@vercel/blob";
 import { hash } from "bcryptjs";
+import { Resend } from "resend";
+import WelcomeEmail from "@/app/components/emails/welcome-email";
+
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 // --- TIPO GLOBAL PARA O ESTADO DOS FORMULÁRIOS (LEGADO PARA OUTRAS PÁGINAS) ---
 export type State = {
@@ -110,7 +114,7 @@ export async function getDashboardData() {
 }
 
 // =========================================================
-// 2. AÇÕES DE MÉDICOS (CUD) - ATUALIZADO
+// 2. AÇÕES DE MÉDICOS (CUD)
 // =========================================================
 
 // Agora aceita apenas formData (sem prevState) para funcionar com o novo formulário
@@ -273,7 +277,6 @@ export async function handleLogout() {
   await signOut({ redirectTo: "/login" });
 }
 
-// Mantivemos a estrutura antiga (prevState) aqui pois não alteramos o formulário de Membros ainda
 export async function createUser(prevState: State, formData: FormData) {
   const session = await auth();
   if (session?.user?.role === "GVP") {
@@ -299,6 +302,7 @@ export async function createUser(prevState: State, formData: FormData) {
   try {
     const hashedPassword = await bcrypt.hash(password, 10);
 
+    // 1. Cria o usuário no Banco
     await prisma.user.create({
       data: {
         name,
@@ -308,9 +312,23 @@ export async function createUser(prevState: State, formData: FormData) {
         role: role as UserRole,
       },
     });
+
+    // 2. Envia o Email de Boas-vindas (Tenta enviar, mas não trava se falhar)
+    try {
+      await resend.emails.send({
+        from: "COLIH System <onboarding@resend.dev>", // Use este email para testes
+        to: email, // O email do novo usuário
+        subject: "Bem-vindo ao Sistema COLIH - Acesso Liberado",
+        react: WelcomeEmail({ name, email, password }),
+      });
+    } catch (emailError) {
+      console.error("Erro ao enviar email:", emailError);
+      // Não retornamos erro aqui para não cancelar a criação do usuário
+    }
   } catch (error) {
     return { message: "Erro ao criar usuário. Talvez o email já exista." };
   }
+
 
   revalidatePath("/membros");
   redirect("/membros");

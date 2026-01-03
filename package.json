@@ -12,6 +12,7 @@
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
     "@prisma/client": "^5.14.0",
+    "@react-email/components": "^1.0.3",
     "@vercel/blob": "^2.0.0",
     "bcryptjs": "^3.0.3",
     "next": "16.0.10",
@@ -20,6 +21,7 @@
     "react-dom": "19.2.1",
     "react-hook-form": "^7.68.0",
     "recharts": "^3.6.0",
+    "resend": "^6.6.0",
     "sonner": "^2.0.7",
     "use-debounce": "^10.0.6",
     "zod": "^4.1.13"
