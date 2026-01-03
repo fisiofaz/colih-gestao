@@ -251,7 +251,7 @@ export async function deleteDoctor(id: string) {
 }
 
 // =========================================================
-// 3. AÇÕES DE LOGIN E USUÁRIOS
+// 3. AÇÕES DE USUÁRIOS (CRUD)
 // =========================================================
 
 export async function authenticate(
@@ -367,6 +367,32 @@ export async function updatePassword(prevState: State, formData: FormData) {
   }
 
   redirect("/");
+}
+
+export async function deleteUser(userId: string) {
+  const session = await auth();
+  
+  // 1. Verifica permissão
+  if (!session?.user || session.user.role === "GVP") {
+    return { success: false, message: "Permissão negada." };
+  }
+
+  // 2. Impede auto-exclusão
+  if (session.user.id === userId) {
+    return { success: false, message: "Você não pode excluir sua própria conta." };
+  }
+
+  try {
+    await prisma.user.delete({
+      where: { id: userId },
+    });
+
+    revalidatePath("/membros");
+    return { success: true, message: "Usuário excluído com sucesso." };
+  } catch (error) {
+    console.error("Erro ao excluir usuário:", error);
+    return { success: false, message: "Erro ao excluir usuário." };
+  }
 }
 
 // =========================================================

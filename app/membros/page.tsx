@@ -6,6 +6,7 @@ import { UserRole } from "@prisma/client";
 import UserSidebar from "@/app/components/users/user-sidebar"; 
 import Search from "../medicos/components/search"; 
 import Pagination from "../medicos/components/pagination"; 
+import { DeleteUserButton } from "@/app/membros/components/delete-user-button";
 
 interface PageProps {
   searchParams: Promise<{
@@ -31,7 +32,7 @@ export default async function MembrosPage({ searchParams }: PageProps) {
   const currentPage = Number(params.page) || 1;
   const skip = (currentPage - 1) * ITEMS_PER_PAGE;
 
-  // 1. CONSTRUIR FILTRO
+  // CONSTRUIR FILTRO
   const whereCondition = {
     role: roleFiltro, // Filtra se tiver role na URL
     OR: query
@@ -42,7 +43,7 @@ export default async function MembrosPage({ searchParams }: PageProps) {
       : undefined,
   };
 
-  // 2. BUSCAR DADOS (Lista + Contagens para o Menu)
+  // BUSCAR DADOS (Lista + Contagens para o Menu)
   const [users, totalCount, countColih, countGvp, countAdmin] =
     await Promise.all([
       // Lista de Usuários da Página
@@ -99,16 +100,18 @@ export default async function MembrosPage({ searchParams }: PageProps) {
         </header>
 
         {/* LAYOUT: SIDEBAR + LISTA */}
-        <div className="flex flex-col md:flex-row items-start">
+        <div className="flex flex-col md:flex-row items-start gap-6">
           {/* MENU LATERAL */}
-          <UserSidebar
-            counts={{
-              COLIH: countColih,
-              GVP: countGvp,
-              ADMIN: countAdmin,
-              total: totalUsersGlobal,
-            }}
-          />
+          <div className="w-full md:w-auto">
+            <UserSidebar
+              counts={{
+                COLIH: countColih,
+                GVP: countGvp,
+                ADMIN: countAdmin,
+                total: totalUsersGlobal,
+              }}
+            />
+          </div>
 
           {/* CONTEÚDO */}
           <div className="flex-1 w-full">
@@ -146,12 +149,21 @@ export default async function MembrosPage({ searchParams }: PageProps) {
                         </span>
                       </td>
                       <td className="px-6 py-4 text-right">
-                        <Link
-                          href={`/membros/${user.id}/editar`}
-                          className="text-blue-600 hover:text-blue-800 font-medium hover:underline"
-                        >
-                          Editar
-                        </Link>
+                        <div className="w-full md:w-auto">
+                          <Link
+                            href={`/membros/${user.id}/editar`}
+                            className="text-blue-600 hover:text-blue-800 font-medium hover:underline"
+                          >
+                            Editar
+                          </Link>
+                        </div>
+                        {/* Lógica para não deixar excluir a si mesmo */}
+                        {session.user?.id !== user.id && (
+                          <DeleteUserButton
+                            id={user.id}
+                            name={user.name || "Usuário"}
+                          />
+                        )}
                       </td>
                     </tr>
                   ))}

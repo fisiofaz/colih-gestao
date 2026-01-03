@@ -67,8 +67,8 @@ model Doctor {
   address           String   
   city              String     
   state             String  
-  zipCode           String
-  country           String
+  zipCode           String?
+  country           String?
 
   
   // Parte 3: Dados Médicos

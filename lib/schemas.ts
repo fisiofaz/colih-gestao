@@ -12,6 +12,10 @@ export const doctorSchema = z.object({
   firstName: z.string().min(2, "Nome é obrigatório"),
   lastName: z.string().min(2, "Sobrenome é obrigatório"),
 
+  // IMPORTANTE: Estes campos não podem faltar!
+  type: z.enum(["COOPERATING", "CONSULTANT"]),
+  gender: z.enum(["MALE", "FEMALE"]),
+
   // --- Contato ---
   email: z.string().email("E-mail inválido").optional().or(z.literal("")),
   phoneMobile: z.string().optional().or(z.literal("")),
