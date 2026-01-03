@@ -12,10 +12,7 @@ import { doctorSchema } from "@/lib/schemas";
 import { logAudit } from "@/lib/logger";
 import { put, del } from "@vercel/blob";
 import { hash } from "bcryptjs";
-import { Resend } from "resend";
-import WelcomeEmail from "@/app/components/emails/welcome-email";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
 
 // --- TIPO GLOBAL PARA O ESTADO DOS FORMULÁRIOS (LEGADO PARA OUTRAS PÁGINAS) ---
 export type State = {
@@ -346,14 +343,16 @@ export async function updatePassword(prevState: State, formData: FormData) {
       where: { email: session.user.email },
       data: {
         password: hashedPassword,
-        mustChangePassword: false,
+        mustChangePassword: false, // Libera o usuário
       },
     });
   } catch (error) {
     return { message: "Erro ao atualizar senha." };
   }
 
-  redirect("/");
+  
+  // Derruba a sessão para obrigar login com a senha nova e atualizar o token
+  await signOut({ redirectTo: "/login" });
 }
 
 export async function deleteUser(userId: string) {
