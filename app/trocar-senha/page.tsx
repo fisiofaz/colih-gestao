@@ -1,82 +1,79 @@
 "use client";
 
+import { updatePassword } from "@/app/actions";
 import { useFormState } from "react-dom";
-import { updatePassword } from "@/app/actions"; // Importe a ação que criamos
-import { handleLogout } from "@/app/actions"; // Para caso a pessoa queira desistir
 
-export default function ChangePasswordPage() {
-  const [state, dispatch, isPending] = useFormState(updatePassword, null);
+// Estado inicial para o hook
+const initialState = {
+  message: "",
+  errors: {},
+};
+
+export default function TrocarSenhaPage() {
+  const [state, action] = useFormState(updatePassword, initialState);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-100 p-4">
-      <div className="max-w-md w-full bg-white rounded-2xl shadow-xl border border-red-100 overflow-hidden">
-        <div className="bg-orange-500 p-6 text-center">
-          <div className="text-4xl mb-2">🔐</div>
-          <h1 className="text-xl font-bold text-white">
-            Troca de Senha Obrigatória
+    <div className="min-h-screen flex items-center justify-center bg-slate-100 px-4">
+      <div className="max-w-md w-full bg-white p-8 rounded-xl shadow-lg border border-red-100">
+        <div className="text-center mb-6">
+          <h1 className="text-2xl font-bold text-slate-800">
+            Troca de Senha Obrigatória 🔒
           </h1>
-          <p className="text-orange-100 text-sm mt-1">
-            Por segurança, você precisa definir uma nova senha no primeiro
-            acesso.
+          <p className="text-slate-500 mt-2 text-sm">
+            Por segurança, você precisa definir uma nova senha antes de acessar
+            o sistema.
           </p>
         </div>
 
-        <div className="p-8">
-          <form action={dispatch} className="space-y-6">
-            <div>
-              <label className="text-sm font-medium text-slate-700 block mb-1">
-                Nova Senha
-              </label>
-              <input
-                name="password"
-                type="password"
-                required
-                className="w-full rounded-lg border border-slate-300 px-4 py-2 text-slate-700 focus:ring-2 focus:ring-orange-500 outline-none"
-                placeholder="No mínimo 6 caracteres"
-              />
+        <form action={action} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">
+              Nova Senha
+            </label>
+            <input
+              name="password"
+              type="password"
+              placeholder="Mínimo 6 caracteres"
+              className="w-full rounded-lg border-slate-300 focus:ring-blue-500"
+              required
+            />
+            {state?.errors?.password && (
               <p className="text-red-500 text-xs mt-1">
-                {state?.errors?.password}
+                {state.errors.password[0]}
               </p>
-            </div>
-
-            <div>
-              <label className="text-sm font-medium text-slate-700 block mb-1">
-                Confirme a Nova Senha
-              </label>
-              <input
-                name="confirmPassword"
-                type="password"
-                required
-                className="w-full rounded-lg border border-slate-300 px-4 py-2 text-slate-700 focus:ring-2 focus:ring-orange-500 outline-none"
-                placeholder="Repita a senha"
-              />
-              <p className="text-red-500 text-xs mt-1">
-                {state?.errors?.confirmPassword}
-              </p>
-            </div>
-
-            {state?.message && (
-              <div className="text-red-600 text-sm text-center bg-red-50 p-2 rounded">
-                {state.message}
-              </div>
             )}
+          </div>
 
-            <button
-              type="submit"
-              disabled={isPending}
-              className="w-full bg-orange-600 hover:bg-orange-700 text-white font-bold py-3 rounded-lg transition-colors"
-            >
-              {isPending ? "Salvando..." : "Definir Nova Senha"}
-            </button>
-          </form>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">
+              Confirmar Nova Senha
+            </label>
+            <input
+              name="confirmPassword"
+              type="password"
+              className="w-full rounded-lg border-slate-300 focus:ring-blue-500"
+              required
+            />
+            {state?.errors?.confirmPassword && (
+              <p className="text-red-500 text-xs mt-1">
+                {state.errors.confirmPassword[0]}
+              </p>
+            )}
+          </div>
 
-          {/* Botão de Sair caso não queira trocar agora */}
-          <form action={handleLogout} className="mt-4 text-center">
-            <button className="text-sm text-slate-400 hover:text-slate-600">
-              Sair e fazer isso depois
-            </button>
-          </form>
-        </div>
+          {state?.message && (
+            <div className="p-3 bg-red-50 text-red-700 text-sm rounded-lg border border-red-200">
+              {state.message}
+            </div>
+          )}
+
+          <button
+            type="submit"
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg transition-colors"
+          >
+            Atualizar Senha e Entrar
+          </button>
+        </form>
       </div>
     </div>
   );

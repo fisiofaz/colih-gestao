@@ -48,23 +48,20 @@ export const { auth, signIn, signOut } = NextAuth({
     }),
   ],
   callbacks: {
-    // 1. Quando o usuário loga, jogamos os dados do banco para o Token
+    // Quando o usuário loga, jogamos os dados do banco para o Token
     async jwt({ token, user }) {
       if (user) {
-        const u = user as User;
-        token.mustChangePassword = u.mustChangePassword;
-        token.role = u.role;
+        token.role = user.role;
+        token.mustChangePassword = user.mustChangePassword;
       }
       return token;
     },
-    // 2. Quando o front pede dados, jogamos os dados do Token para a Sessão
+    // Quando o front pede dados, jogamos os dados do Token para a Sessão
     async session({ session, token }) {
-      if (token.sub && session.user) {
-        const s = session.user as UserCustomFields;
-
-        s.mustChangePassword = token.mustChangePassword as boolean;
-        s.role = token.role as UserRole;
-      }
+     if (token && session.user) {
+       session.user.role = token.role as UserRole;
+       session.user.mustChangePassword = token.mustChangePassword as boolean;
+     }
       return session;
     },
   },

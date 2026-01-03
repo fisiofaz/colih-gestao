@@ -311,20 +311,8 @@ export async function createUser(prevState: State, formData: FormData) {
         mustChangePassword: true,
         role: role as UserRole,
       },
-    });
-
-    // 2. Envia o Email de Boas-vindas (Tenta enviar, mas não trava se falhar)
-    try {
-      await resend.emails.send({
-        from: "COLIH System <onboarding@resend.dev>", // Use este email para testes
-        to: email, // O email do novo usuário
-        subject: "Bem-vindo ao Sistema COLIH - Acesso Liberado",
-        react: WelcomeEmail({ name, email, password }),
-      });
-    } catch (emailError) {
-      console.error("Erro ao enviar email:", emailError);
-      // Não retornamos erro aqui para não cancelar a criação do usuário
-    }
+    });       
+    
   } catch (error) {
     return { message: "Erro ao criar usuário. Talvez o email já exista." };
   }
