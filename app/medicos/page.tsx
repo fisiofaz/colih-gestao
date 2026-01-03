@@ -4,23 +4,21 @@ import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import Search from "./components/search";
 import Pagination from "./components/pagination";
-import Filters from "./components/filters"; // <--- Importamos o novo componente
+import Filters from "./components/filters";
 import { DeleteButton } from "@/app/medicos/components/delete-button";
 
 interface PageProps {
   searchParams: Promise<{
     query?: string;
     page?: string;
-    city?: string; 
-    specialty?: string; 
+    city?: string;
+    specialty?: string;
   }>;
 }
 
 export default async function MedicosPage({ searchParams }: PageProps) {
   const session = await auth();
 
-  // Apenas GVP não vê a lista? Ou todos podem ver?
-  // Mantendo a lógica anterior: se tiver sessão, vê.
   if (!session) {
     redirect("/login");
   }
@@ -28,7 +26,6 @@ export default async function MedicosPage({ searchParams }: PageProps) {
   const role = session.user.role;
   const isGVP = role === "GVP";
 
-  // 1. Recebe os parâmetros da URL
   const params = await searchParams;
   const query = params.query || "";
   const currentPage = Number(params.page) || 1;
@@ -38,12 +35,10 @@ export default async function MedicosPage({ searchParams }: PageProps) {
   const ITEMS_PER_PAGE = 10;
   const skip = (currentPage - 1) * ITEMS_PER_PAGE;
 
-  // 2. Busca todas as Cidades e Especialidades únicas para montar os filtros
-  // O "distinct" garante que não venha repetido
   const [citiesRaw, specialtiesRaw] = await Promise.all([
     prisma.doctor.findMany({
       select: { city: true },
-      where: { city: { not: "" } }, // Ignora vazios
+      where: { city: { not: "" } },
       distinct: ["city"],
       orderBy: { city: "asc" },
     }),
@@ -58,15 +53,9 @@ export default async function MedicosPage({ searchParams }: PageProps) {
   const uniqueCities = citiesRaw.map((c) => c.city);
   const uniqueSpecialties = specialtiesRaw.map((s) => s.specialty1);
 
-  // 3. Monta o filtro principal do banco de dados
   const whereCondition = {
-    // Se tiver filtro de cidade, aplica. Senão, ignora.
     ...(cityFilter ? { city: cityFilter } : {}),
-
-    // Se tiver filtro de especialidade, aplica.
     ...(specialtyFilter ? { specialty1: specialtyFilter } : {}),
-
-    // Busca por texto (Nome ou Email ou Telefone)
     OR: query
       ? [
           { firstName: { contains: query, mode: "insensitive" as const } },
@@ -77,7 +66,6 @@ export default async function MedicosPage({ searchParams }: PageProps) {
       : undefined,
   };
 
-  // 4. Busca os médicos filtrados
   const [doctors, totalCount] = await Promise.all([
     prisma.doctor.findMany({
       where: whereCondition,
@@ -113,12 +101,9 @@ export default async function MedicosPage({ searchParams }: PageProps) {
         </header>
 
         <section className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 mb-6 space-y-4 md:space-y-0 md:flex md:items-center md:gap-4">
-          {/* Barra de Busca de Texto */}
           <div className="flex-1">
             <Search placeholder="Buscar por nome, CRM..." />
           </div>
-
-          {/* Novos Filtros Dropdown */}
           <Filters cities={uniqueCities} specialties={uniqueSpecialties} />
         </section>
 
@@ -129,46 +114,85 @@ export default async function MedicosPage({ searchParams }: PageProps) {
                 <th className="px-6 py-4">Nome</th>
                 <th className="px-6 py-4">Especialidade</th>
                 <th className="px-6 py-4">Cidade</th>
-                <th className="px-6 py-4">Telefone</th>
+                <th className="px-6 py-4">Contato (WhatsApp)</th>
                 {!isGVP && <th className="px-6 py-4 text-right">Ações</th>}
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {doctors.map((doctor) => (
-                <tr
-                  key={doctor.id}
-                  className="hover:bg-slate-50 transition-colors"
-                >
-                  <td className="px-6 py-4 font-medium text-slate-900">
-                    {doctor.firstName} {doctor.lastName}
-                  </td>
-                  <td className="px-6 py-4">
-                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-100">
-                      {doctor.specialty1}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4">{doctor.city}</td>
-                  <td className="px-6 py-4 font-mono text-xs">
-                    {doctor.phoneMobile}
-                  </td>
-                  {!isGVP && (
-                    <td className="px-6 py-4 text-right">
-                      <div className="flex justify-end items-center gap-3">
-                        <Link
-                          href={`/medicos/${doctor.id}/editar`}
-                          className="text-blue-600 hover:text-blue-800 font-medium hover:underline"
-                        >
-                          Editar
-                        </Link>
-                        <DeleteButton
-                          id={doctor.id}
-                          name={doctor.firstName}
-                        />
-                      </div>
+              {doctors.map((doctor) => {
+                // LÓGICA DO WHATSAPP:
+                // 1. Remove tudo que não for número
+                const rawPhone = doctor.phoneMobile?.replace(/\D/g, "") || "";
+                // 2. Adiciona o código do Brasil (55) se tiver número
+                const whatsappUrl = rawPhone
+                  ? `https://wa.me/55${rawPhone}?text=Olá Dr(a). ${doctor.firstName}, sou da COLIH.`
+                  : null;
+
+                return (
+                  <tr
+                    key={doctor.id}
+                    className="hover:bg-slate-50 transition-colors"
+                  >
+                    <td className="px-6 py-4 font-medium text-slate-900">
+                      {doctor.firstName} {doctor.lastName}
                     </td>
-                  )}
-                </tr>
-              ))}
+                    <td className="px-6 py-4">
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-100">
+                        {doctor.specialty1}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4">{doctor.city}</td>
+
+                    {/* COLUNA DO WHATSAPP ATUALIZADA */}
+                    <td className="px-6 py-4">
+                      {whatsappUrl ? (
+                        <a
+                          href={whatsappUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-2 text-emerald-600 hover:text-emerald-700 font-semibold bg-emerald-50 hover:bg-emerald-100 px-3 py-1.5 rounded-lg transition-colors border border-emerald-200"
+                        >
+                          {/* Ícone do WhatsApp (SVG) */}
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            viewBox="0 0 24 24"
+                            fill="currentColor"
+                            className="w-4 h-4"
+                          >
+                            <path
+                              fillRule="evenodd"
+                              d="M1.5 4.5a3 3 0 013-3h1.372c.86 0 1.61.586 1.819 1.42l1.105 4.423a1.875 1.875 0 01-.694 1.955l-1.293.97c-.135.101-.164.249-.126.352a11.285 11.285 0 006.697 6.697c.103.038.25.009.352-.126l.97-1.293a1.875 1.875 0 011.955-.694l4.423 1.105c.834.209 1.42.959 1.42 1.82V19.5a3 3 0 01-3 3h-2.25C8.552 22.5 1.5 15.448 1.5 5.25V4.5z"
+                              clipRule="evenodd"
+                            />
+                          </svg>
+                          {doctor.phoneMobile}
+                        </a>
+                      ) : (
+                        <span className="text-slate-400 text-xs italic">
+                          Sem número
+                        </span>
+                      )}
+                    </td>
+
+                    {!isGVP && (
+                      <td className="px-6 py-4 text-right">
+                        <div className="flex justify-end items-center gap-3">
+                          <Link
+                            href={`/medicos/${doctor.id}/editar`}
+                            className="text-blue-600 hover:text-blue-800 font-medium hover:underline"
+                          >
+                            Editar
+                          </Link>
+                          <DeleteButton
+                            id={doctor.id}
+                            name={doctor.firstName}
+                          />
+                        </div>
+                      </td>
+                    )}
+                  </tr>
+                );
+              })}
 
               {doctors.length === 0 && (
                 <tr>
