@@ -19,7 +19,7 @@ interface UserCustomFields {
   role?: UserRole; 
 }
 
-export const { auth, signIn, signOut } = NextAuth({
+export const { handlers, auth, signIn, signOut } = NextAuth({
   ...authConfig,
   providers: [
     Credentials({
@@ -52,16 +52,18 @@ export const { auth, signIn, signOut } = NextAuth({
     async jwt({ token, user }) {
       if (user) {
         token.role = user.role;
+        // @ts-expect-error O tipo User do NextAuth ainda não tem mustChangePassword definido
         token.mustChangePassword = user.mustChangePassword;
       }
       return token;
     },
     // Quando o front pede dados, jogamos os dados do Token para a Sessão
     async session({ session, token }) {
-     if (token && session.user) {
-       session.user.role = token.role as UserRole;
-       session.user.mustChangePassword = token.mustChangePassword as boolean;
-     }
+      if (token && session.user) {
+        session.user.role = token.role as UserRole;
+        // @ts-expect-error O tipo Session do NextAuth ainda não tem mustChangePassword definido
+        session.user.mustChangePassword = Boolean(token.mustChangePassword);
+      }
       return session;
     },
   },
