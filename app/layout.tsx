@@ -7,16 +7,29 @@ import Navbar from "@/app/components/ui/navbar";
 
 const inter = Inter({ subsets: ["latin"] });
 
-export const metadata: Metadata = {
-  title: "COLIH Gestão",
-  description: "Sistema de gestão para COLIH",
-};
-
 export const viewport: Viewport = {
-  themeColor: "#2563eb", // Azul do topo
+  themeColor: "#2563eb",
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
+  userScalable: false,
+};
+
+
+export const metadata: Metadata = {
+  title: "COLIH Gestão",
+  description: "Sistema de gestão para COLIH",
+  manifest: "/manifest.webmanifest",
+  icons: {
+    icon: "/public/android-chrome-192x192.png", // Ícone para abas e Android
+    shortcut: "/public/android-chrome-192x192.png", // Ícone de atalho
+    apple: "/public/android-chrome-192x192.png", // Ícone EXCLUSIVO para iPhone/iPad
+  },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "COLIH",
+  },
 };
 
 export default async function RootLayout({
