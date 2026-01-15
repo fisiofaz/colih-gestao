@@ -21,9 +21,9 @@ export const metadata: Metadata = {
   description: "Sistema de gestão para COLIH",
   manifest: "/manifest.webmanifest",
   icons: {
-    icon: "/public/android-chrome-192x192.png", // Ícone para abas e Android
-    shortcut: "/public/android-chrome-192x192.png", // Ícone de atalho
-    apple: "/public/android-chrome-192x192.png", // Ícone EXCLUSIVO para iPhone/iPad
+    icon: "/public/icon-192.png", 
+    shortcut: "/public/icon-192.png", 
+    apple: "/public/icon-192.png", 
   },
   appleWebApp: {
     capable: true,
