@@ -11,20 +11,27 @@ export default async function MonitoringPage({
 }) {
   const session = await auth();
 
-  // Apenas Admin pode ver essa tela
+  // Bloqueio de Segurança: Só Admin entra aqui
   if (session?.user?.role !== "ADMIN") {
     redirect("/relatorios");
   }
 
   const params = await searchParams;
   const today = new Date();
-  const currentDay = today.getDate();
-  const currentMonthStr =
-    params.month ||
-    `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
+  const currentDay = today.getDate(); // Dia de hoje (ex: 17)
 
-  // 1. Busca todos os membros ativos (COLIH e ADMIN)
-  const allMembers = await prisma.user.findMany({
+  // --- MUDANÇA DA LÓGICA AQUI ---
+
+  // 1. Calcular qual é o "Mês Passado" (o mês que deve ser relatado)
+  const lastMonthDate = new Date();
+  lastMonthDate.setMonth(today.getMonth() - 1); // Volta 1 mês
+  const lastMonthStr = `${lastMonthDate.getFullYear()}-${String(lastMonthDate.getMonth() + 1).padStart(2, "0")}`;
+
+  // 2. Se não tiver filtro na URL, o padrão é cobrar o Mês Passado
+  const filterMonth = params.month || lastMonthStr;
+
+  // Busca todos os membros que devem relatar (COLIH e ADMIN)
+  const members = await prisma.user.findMany({
     where: {
       role: { in: [UserRole.COLIH, UserRole.ADMIN] },
     },
@@ -33,86 +40,85 @@ export default async function MonitoringPage({
       name: true,
       whatsapp: true,
       activityReports: {
-        where: { month: currentMonthStr },
+        where: { month: filterMonth }, // Busca relatório do mês filtrado
         select: { id: true, createdAt: true },
       },
     },
     orderBy: { name: "asc" },
   });
 
-  // 2. Separa quem entregou de quem está pendente
-  const statusList = allMembers.map((member) => {
-    const hasReport = member.activityReports.length > 0;
-    return {
-      ...member,
-      status: hasReport ? "DONE" : "PENDING",
-      deliveredAt: hasReport ? member.activityReports[0].createdAt : null,
-    };
-  });
-
-  const pendingCount = statusList.filter((m) => m.status === "PENDING").length;
-
   return (
     <div className="min-h-screen bg-slate-50 p-4 md:p-8">
       <div className="max-w-5xl mx-auto space-y-8">
-        {/* CABEÇALHO */}
-        <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+        <div className="flex justify-between items-center">
           <div>
-            <h1 className="text-3xl font-bold text-slate-800">
-              🕵️‍♂️ Monitoramento
+            <h1 className="text-2xl font-bold text-slate-800">
+              🕵️‍♂️ Monitoramento de Entregas
             </h1>
             <p className="text-slate-500">
-              Controle de entregas de {currentMonthStr}
+              Mês de referência (Relatório):{" "}
+              <strong className="text-blue-600">{filterMonth}</strong>
             </p>
           </div>
-          <Link
-            href="/relatorios"
-            className="text-blue-600 hover:underline text-sm"
-          >
-            ← Voltar para Relatórios
+          <Link href="/" className="text-blue-600 hover:underline">
+            Voltar ao Início
           </Link>
         </div>
 
-        {/* RESUMO */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="bg-white p-4 rounded-lg shadow-sm border-l-4 border-blue-500">
-            <p className="text-sm text-slate-500">Total de Membros</p>
-            <p className="text-2xl font-bold">{allMembers.length}</p>
-          </div>
-          <div className="bg-white p-4 rounded-lg shadow-sm border-l-4 border-green-500">
-            <p className="text-sm text-slate-500">Entregues</p>
-            <p className="text-2xl font-bold">
-              {allMembers.length - pendingCount}
-            </p>
-          </div>
-          <div className="bg-white p-4 rounded-lg shadow-sm border-l-4 border-red-500">
-            <p className="text-sm text-slate-500">Pendentes</p>
-            <p className="text-2xl font-bold text-red-600">{pendingCount}</p>
+        {/* ALERTA DE PRAZO */}
+        <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4">
+          <div className="flex">
+            <div className="ml-3">
+              <p className="text-sm text-yellow-700">
+                O prazo de entrega para o relatório de{" "}
+                <strong>{lastMonthStr}</strong> é dia{" "}
+                <strong>
+                  10/{String(today.getMonth() + 1).padStart(2, "0")}
+                </strong>
+                .
+                {currentDay > 10 ? (
+                  <span className="font-bold text-red-600 ml-1">
+                    {" "}
+                    (Prazo Encerrado)
+                  </span>
+                ) : (
+                  <span className="font-bold text-green-600 ml-1">
+                    {" "}
+                    (Dentro do Prazo)
+                  </span>
+                )}
+              </p>
+            </div>
           </div>
         </div>
 
-        {/* LISTA DE MEMBROS */}
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
           <table className="w-full text-sm text-left">
             <thead className="bg-slate-100 text-slate-600 border-b">
               <tr>
                 <th className="p-4">Membro</th>
                 <th className="p-4">Status</th>
-                <th className="p-4">Whatsapp</th>
-                <th className="p-4">Ação</th>
+                <th className="p-4">Ação (WhatsApp)</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {statusList.map((member) => {
-                // LÓGICA DA MENSAGEM AUTOMÁTICA
+              {members.map((member) => {
+                const hasReport = member.activityReports.length > 0;
                 const firstName = member.name?.split(" ")[0] || "Irmão";
 
-                // Mensagem muda se passou do dia 10
+                // --- LÓGICA DA MENSAGEM CORRIGIDA ---
                 let zapMessage = "";
+
+                // Formata a data para ficar bonito na mensagem (ex: 2026-01 vira "01/2026")
+                const [ano, mes] = filterMonth.split("-");
+                const mesFormatado = `${mes}/${ano}`;
+
                 if (currentDay <= 10) {
-                  zapMessage = `Olá ${firstName}, tudo bem? Lembrete amigável: Não esqueça de preencher o relatório da COLIH de ${currentMonthStr} até o dia 10. Obrigado!`;
+                  // Antes do dia 10: Lembrete Amigável
+                  zapMessage = `Olá ${firstName}, tudo bem? Lembrete da COLIH: Por favor, preencha seu relatório de *${mesFormatado}* até o dia 10. Obrigado!`;
                 } else {
-                  zapMessage = `Olá ${firstName}. O prazo do dia 10 já passou. Por favor, poderia preencher o relatório da COLIH de ${currentMonthStr} hoje? Precisamos fechar os dados.`;
+                  // Depois do dia 10: Cobrança
+                  zapMessage = `Olá ${firstName}. O prazo do dia 10 já passou. Por favor, precisamos do seu relatório de *${mesFormatado}* urgente para fechar os dados. Pode preencher hoje?`;
                 }
 
                 const zapLink = member.whatsapp
@@ -121,42 +127,48 @@ export default async function MonitoringPage({
 
                 return (
                   <tr key={member.id} className="hover:bg-slate-50">
-                    <td className="p-4 font-medium text-slate-800">
+                    <td className="p-4 font-medium text-slate-900">
                       {member.name}
-                      {member.status === "DONE" && (
-                        <span className="ml-2 text-xs text-green-600 bg-green-100 px-2 py-0.5 rounded-full">
-                          Entregue em {member.deliveredAt?.toLocaleDateString()}
-                        </span>
-                      )}
+                      <div className="text-xs text-slate-400">
+                        {member.whatsapp || "Sem whats cadastrado"}
+                      </div>
                     </td>
+
                     <td className="p-4">
-                      {member.status === "PENDING" ? (
-                        <span className="inline-flex items-center gap-1 text-red-600 bg-red-50 px-2 py-1 rounded border border-red-100">
-                          ⏳ Pendente
+                      {hasReport ? (
+                        <span className="inline-flex items-center gap-1 text-green-700 bg-green-50 px-2 py-1 rounded border border-green-200">
+                          ✅ Entregue
                         </span>
                       ) : (
-                        <span className="text-green-600">✅ OK</span>
+                        <span className="inline-flex items-center gap-1 text-red-700 bg-red-50 px-2 py-1 rounded border border-red-200">
+                          ⏳ Pendente
+                        </span>
                       )}
                     </td>
-                    <td className="p-4 text-slate-500">
-                      {member.whatsapp || "Sem nº cadastrado"}
-                    </td>
+
                     <td className="p-4">
-                      {member.status === "PENDING" && member.whatsapp && (
+                      {!hasReport && zapLink && (
                         <a
-                          href={zapLink!}
+                          href={zapLink}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="inline-flex items-center gap-2 bg-green-500 hover:bg-green-600 text-white px-3 py-1.5 rounded-md transition-colors text-xs font-bold"
+                          className={`px-3 py-2 rounded-lg font-bold text-xs inline-flex items-center gap-2 transition-colors text-white ${
+                            currentDay > 10
+                              ? "bg-red-500 hover:bg-red-600"
+                              : "bg-green-500 hover:bg-green-600"
+                          }`}
                         >
-                          📲 Cobrar no Zap
+                          {currentDay > 10
+                            ? "🚨 Cobrar Atraso"
+                            : "📲 Enviar Lembrete"}
                         </a>
                       )}
-                      {member.status === "PENDING" && !member.whatsapp && (
+                      {!hasReport && !zapLink && (
                         <span className="text-xs text-slate-400 italic">
                           Cadastre o cel no perfil
                         </span>
                       )}
+                      {hasReport && <span className="text-slate-400">-</span>}
                     </td>
                   </tr>
                 );
