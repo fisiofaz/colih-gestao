@@ -122,6 +122,7 @@ export default async function MembrosPage({ searchParams }: PageProps) {
                   <tr>
                     <th className="px-6 py-4">Nome</th>
                     <th className="px-6 py-4">Email</th>
+                    <th className="px-6 py-4">WhatsApp</th>
                     <th className="px-6 py-4">Função</th>
                     {/* SÓ ADMIN VÊ O CABEÇALHO DA COLUNA AÇÕES */}
                     {isAdmin && <th className="px-6 py-4 text-right">Ações</th>}
@@ -137,14 +138,16 @@ export default async function MembrosPage({ searchParams }: PageProps) {
                         {user.name || "Sem nome"}
                       </td>
                       <td className="px-6 py-4">{user.email}</td>
-                      <td className="px-6 py-4">
-                        <span
-                          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${
-                            roleColors[user.role] || "bg-gray-100"
-                          }`}
-                        >
-                          {roleLabels[user.role] || user.role}
-                        </span>
+                      <td className="px-6 py-4 text-slate-500">
+                        {user.whatsapp ? (
+                          <span className="flex items-center gap-1 text-green-700 bg-green-50 px-2 py-1 rounded-md text-xs font-bold w-fit">
+                            📱 {user.whatsapp}
+                          </span>
+                        ) : (
+                          <span className="text-slate-400 italic text-xs">
+                            Pend.
+                          </span>
+                        )}
                       </td>
 
                       {/* SÓ ADMIN VÊ OS BOTÕES DE AÇÃO */}

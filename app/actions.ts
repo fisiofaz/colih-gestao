@@ -525,23 +525,34 @@ export async function deleteVisit(visitId: string, doctorId: string) {
   revalidatePath(`/medicos/${doctorId}/editar`);
 }
 
-export async function updateUser(id: string, formData: FormData) {
+export async function updateUser(formData: FormData) {
   const session = await auth();
+
+  // Verificação de Segurança
   if (session?.user?.role !== "ADMIN") {
     return { success: false, message: "Não autorizado" };
   }
 
+  // Extração dos Dados
+  const id = formData.get("id") as string;
   const name = formData.get("name") as string;
   const email = formData.get("email") as string;
   const role = formData.get("role") as UserRole;
   const password = formData.get("password") as string;
+  const whatsappRaw = formData.get("whatsapp") as string;
 
+  // Limpeza do WhatsApp (Remove tudo que não for número)
+  const whatsapp = whatsappRaw ? whatsappRaw.replace(/\D/g, "") : null;
+
+  // Montagem do Objeto de Atualização
   const dataToUpdate: Prisma.UserUpdateInput = {
     name,
     email,
     role,
+    whatsapp,
   };
 
+  // Lógica de Senha (só atualiza se o usuário digitou algo)
   if (password && password.trim() !== "") {
     if (password.length < 6) {
       return {
@@ -559,6 +570,7 @@ export async function updateUser(id: string, formData: FormData) {
     });
 
     revalidatePath("/membros");
+    revalidatePath("/relatorios/monitoramento");
     return { success: true, message: "Membro atualizado com sucesso!" };
   } catch (error) {
     console.error("Erro ao atualizar membro:", error);

@@ -22,12 +22,11 @@ export default function UserForm({ user }: UserFormProps) {
 
     const formData = new FormData(event.currentTarget);
 
-    // Chama a server action que criamos
-    const result = await updateUser(user.id, formData);
+    const result = await updateUser(formData);
 
     if (result.success) {
-      router.push("/membros"); // Volta para a lista
-      router.refresh(); // Atualiza os dados
+      router.push("/membros");
+      router.refresh();
     } else {
       setError(result.message);
       setLoading(false);
@@ -39,19 +38,25 @@ export default function UserForm({ user }: UserFormProps) {
       onSubmit={handleSubmit}
       className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 max-w-2xl mx-auto"
     >
+      <input type="hidden" name="id" value={user.id} />
+
       {error && (
         <div className="mb-4 p-3 bg-red-50 text-red-700 rounded-lg text-sm">
           {error}
         </div>
       )}
 
-      <div className="space-y-4">
+      <div className="space-y-6">
         {/* Nome */}
         <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">
+          <label
+            htmlFor="name" // <--- LIGAÇÃO AQUI
+            className="block text-sm font-medium text-slate-700 mb-1"
+          >
             Nome Completo
           </label>
           <input
+            id="name" // <--- LIGAÇÃO AQUI
             name="name"
             defaultValue={user.name || ""}
             required
@@ -61,10 +66,14 @@ export default function UserForm({ user }: UserFormProps) {
 
         {/* Email */}
         <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">
+          <label
+            htmlFor="email"
+            className="block text-sm font-medium text-slate-700 mb-1"
+          >
             Email
           </label>
           <input
+            id="email"
             name="email"
             type="email"
             defaultValue={user.email || ""}
@@ -73,45 +82,77 @@ export default function UserForm({ user }: UserFormProps) {
           />
         </div>
 
+        {/* WhatsApp */}
+        <div>
+          <label
+            htmlFor="whatsapp"
+            className="block text-sm font-medium text-slate-700 mb-1"
+          >
+            WhatsApp{" "}
+            <span className="text-slate-400 font-normal">
+              (Somente números)
+            </span>
+          </label>
+          <div className="relative">
+            <span className="absolute left-3 top-2.5 text-slate-400 text-sm font-bold">
+              🇧🇷 +55
+            </span>
+            <input
+              id="whatsapp"
+              name="whatsapp"
+              type="text"
+              // @ts-ignore
+              defaultValue={user.whatsapp || ""}
+              placeholder="11999998888"
+              className="w-full rounded-lg border-slate-300 focus:ring-blue-500 focus:border-blue-500 pl-20"
+            />
+          </div>
+          <p className="text-xs text-slate-500 mt-1">
+            Necessário para receber lembretes de relatórios.
+          </p>
+        </div>
+
         {/* Cargo / Role */}
         <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">
+          <label
+            htmlFor="role"
+            className="block text-sm font-medium text-slate-700 mb-1"
+          >
             Função / Cargo
           </label>
           <select
+            id="role"
             name="role"
             defaultValue={user.role}
-            className="w-full rounded-lg border-slate-300 focus:ring-blue-500 focus:border-blue-500"
+            className="w-full rounded-lg border-slate-300 focus:ring-blue-500 focus:border-blue-500 bg-white"
           >
             <option value="COLIH">Membro COLIH</option>
             <option value="GVP">Membro GVP</option>
             <option value="ADMIN">Administrador</option>
           </select>
-          <p className="text-xs text-slate-500 mt-1">
-            ⚠️ Cuidado ao definir como Administrador.
-          </p>
         </div>
 
-        {/* --- NOVO BLOCO DE SENHA --- */}
-        <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">
-            Nova Senha (Opcional)
+        {/* Senha */}
+        <div className="pt-4 border-t border-slate-100">
+          <label
+            htmlFor="password"
+            className="block text-sm font-medium text-slate-700 mb-1"
+          >
+            Alterar Senha{" "}
+            <span className="font-normal text-slate-400">(Opcional)</span>
           </label>
           <input
+            id="password"
             name="password"
             type="password"
-            placeholder="Deixe em branco para manter a senha atual"
+            placeholder="Deixe em branco para manter a atual"
             minLength={6}
             autoComplete="new-password"
             className="w-full rounded-lg border-slate-300 focus:ring-blue-500 focus:border-blue-500 placeholder:text-slate-400"
           />
-          <p className="text-xs text-slate-500 mt-1">
-            Preencha apenas se o usuário esqueceu a senha e precisa de uma nova.
-          </p>
         </div>
       </div>
 
-      {/* Botões */}
       <div className="flex justify-end gap-3 mt-8 pt-4 border-t border-slate-100">
         <Link
           href="/membros"
@@ -122,7 +163,7 @@ export default function UserForm({ user }: UserFormProps) {
         <button
           type="submit"
           disabled={loading}
-          className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium disabled:opacity-50"
+          className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium disabled:opacity-50 transition-colors"
         >
           {loading ? "Salvando..." : "Salvar Alterações"}
         </button>
