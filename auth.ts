@@ -16,7 +16,7 @@ async function getUser(email: string): Promise<User | null> {
 
 interface UserCustomFields {
   mustChangePassword?: boolean;
-  role?: UserRole; 
+  role?: UserRole;
 }
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
@@ -38,7 +38,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           // Verifica se a senha bate (usando bcrypt)
           const passwordsMatch = await bcrypt.compare(
             credentials.password as string,
-            user.password
+            user.password,
           );
 
           if (passwordsMatch) return user;
@@ -51,6 +51,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     // Quando o usuário loga, jogamos os dados do banco para o Token
     async jwt({ token, user }) {
       if (user) {
+        token.sub = user.id; // Garante que o ID está no token (sub = subject)
         token.role = user.role;
         // @ts-expect-error O tipo User do NextAuth ainda não tem mustChangePassword definido
         token.mustChangePassword = user.mustChangePassword;
@@ -60,6 +61,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     // Quando o front pede dados, jogamos os dados do Token para a Sessão
     async session({ session, token }) {
       if (token && session.user) {
+        // --- A LINHA DA CORREÇÃO ESTÁ AQUI EMBAIXO ---
+        session.user.id = token.sub as string; // Copia o ID do token para a sessão
+
         session.user.role = token.role as UserRole;
         // @ts-expect-error O tipo Session do NextAuth ainda não tem mustChangePassword definido
         session.user.mustChangePassword = Boolean(token.mustChangePassword);

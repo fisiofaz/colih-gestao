@@ -16,7 +16,9 @@ export default async function ReportsPage({
   searchParams: Promise<{ month?: string }>;
 }) {
   const session = await auth();
-  if (!session?.user) redirect("/");
+  if (!session?.user?.id) {
+    redirect("/login");
+  }
 
   const isAdmin = session.user.role === "ADMIN";
   const params = await searchParams;
