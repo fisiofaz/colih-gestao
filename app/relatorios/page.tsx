@@ -2,7 +2,13 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import { submitActivityReport } from "@/app/actions";
-import { revalidatePath } from "next/cache";
+
+// 1. Criamos um tipo para os dados, assim o TypeScript fica feliz
+type MonthlyStats = {
+  visits: number;
+  solo: number;
+  shared: number;
+};
 
 export default async function ReportsPage({
   searchParams,
@@ -15,66 +21,114 @@ export default async function ReportsPage({
   const isAdmin = session.user.role === "ADMIN";
   const params = await searchParams;
 
-  // Define o mês padrão como o atual (ex: "2023-12")
   const today = new Date();
-  const currentMonth =
+  const currentYear = today.getFullYear();
+  const filterMonth =
     params.month ||
-    `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
+    `${currentYear}-${String(today.getMonth() + 1).padStart(2, "0")}`;
 
-  // Busca o relatório do próprio usuário para preencher o form
-  const myReport = await prisma.activityReport.findUnique({
-    where: {
-      userId_month: {
-        userId: session.user.id,
-        month: currentMonth,
-      },
-    },
+  // 1. DADOS DO MÊS SELECIONADO
+  const myReportMonth = await prisma.activityReport.findUnique({
+    where: { userId_month: { userId: session.user.id, month: filterMonth } },
   });
 
-  // SE FOR ADMIN: Busca todos os relatórios do mês para o Resumão
-  const allReports = isAdmin
+  const allReportsMonth = isAdmin
     ? await prisma.activityReport.findMany({
-        where: { month: currentMonth },
+        where: { month: filterMonth },
         include: { user: { select: { name: true } } },
         orderBy: { user: { name: "asc" } },
       })
     : [];
 
-  // Cálculos do Admin
-  const totalVisits = allReports.reduce((acc, curr) => acc + curr.visits, 0);
-  const totalSolo = allReports.reduce((acc, curr) => acc + curr.soloCases, 0);
-  const totalSharedRaw = allReports.reduce(
+  const monthVisits = allReportsMonth.reduce(
+    (acc, curr) => acc + curr.visits,
+    0,
+  );
+  const monthSolo = allReportsMonth.reduce(
+    (acc, curr) => acc + curr.soloCases,
+    0,
+  );
+  const monthShared = allReportsMonth.reduce(
     (acc, curr) => acc + curr.sharedCases,
     0,
   );
+  const monthTotalAdjusted = monthSolo + Math.ceil(monthShared / 2);
 
-  // A LÓGICA MÁGICA: Soma os casos em dupla e divide por 2
-  // (Assumindo que ambos os irmãos reportaram. Arredondamos pra cima caso seja ímpar)
-  const totalSharedAdjusted = Math.ceil(totalSharedRaw / 2);
+  // 2. ESTATÍSTICAS ANUAIS
+  const annualWhere = isAdmin
+    ? { month: { startsWith: `${currentYear}-` } }
+    : { month: { startsWith: `${currentYear}-` }, userId: session.user.id };
 
-  const totalCasesFinal = totalSolo + totalSharedAdjusted;
+  const annualReports = await prisma.activityReport.findMany({
+    where: annualWhere,
+    orderBy: { month: "asc" },
+  });
+
+  // Agrupamento (Tipado corretamente agora)
+  const monthlyStats = new Map<string, MonthlyStats>();
+
+  annualReports.forEach((rep) => {
+    const m = rep.month;
+    if (!monthlyStats.has(m)) {
+      monthlyStats.set(m, { visits: 0, solo: 0, shared: 0 });
+    }
+    const current = monthlyStats.get(m)!; // O "!" garante que existe pois acabamos de criar se não existia
+    current.visits += rep.visits;
+    current.solo += rep.soloCases;
+    current.shared += rep.sharedCases;
+  });
+
+  const sortedStats = Array.from(monthlyStats.entries()).sort();
+
+  // Calcula os totais do ano
+  const yearTotals = sortedStats.reduce(
+    (acc, [_, stats]) => {
+      acc.visits += stats.visits;
+      acc.solo += stats.solo;
+      acc.shared += stats.shared;
+      return acc;
+    },
+    { visits: 0, solo: 0, shared: 0 },
+  );
+
+  // Monta a lista para exibição
+  const historyData = sortedStats.map(([month, stats]) => {
+    const adjustedTotal = isAdmin
+      ? stats.solo + Math.ceil(stats.shared / 2)
+      : stats.solo + stats.shared;
+
+    return { month, ...stats, total: adjustedTotal };
+  });
+
+  const yearTotalAdjusted = isAdmin
+    ? yearTotals.solo + Math.ceil(yearTotals.shared / 2)
+    : yearTotals.solo + yearTotals.shared;
 
   return (
     <div className="min-h-screen bg-slate-50 p-4 md:p-8">
-      <div className="max-w-4xl mx-auto space-y-8">
-        {/* CABEÇALHO E SELETOR DE MÊS */}
+      <div className="max-w-5xl mx-auto space-y-8">
         <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-          <h1 className="text-3xl font-bold text-slate-800">
-            📋 Relatório Mensal
-          </h1>
-          <form className="flex items-center gap-2">
+          <div>
+            <h1 className="text-3xl font-bold text-slate-800">
+              📋 Relatórios de Atividade
+            </h1>
+            <p className="text-slate-500">
+              Gestão de Visitas e Casos Hospitalares
+            </p>
+          </div>
+          <form className="flex items-center gap-2 bg-white p-2 rounded-lg border shadow-sm">
             <label
               htmlFor="month-selector"
-              className="text-sm font-medium text-slate-600"
+              className="text-sm font-medium text-slate-600 pl-2"
             >
-              Mês referência:
+              Mês Referência:
             </label>
             <input
               id="month-selector"
               type="month"
               name="month"
-              defaultValue={currentMonth}
-              className="border border-slate-300 rounded-md p-2 text-sm"
+              defaultValue={filterMonth}
+              className="border-none text-slate-700 font-medium focus:ring-0 cursor-pointer"
               onChange={(e) => {
                 window.location.href = `/relatorios?month=${e.target.value}`;
               }}
@@ -82,191 +136,216 @@ export default async function ReportsPage({
           </form>
         </div>
 
-        {/* ÁREA DO ADMIN: RESUMO GERAL */}
-        {isAdmin && (
-          <div className="bg-white border-l-4 border-blue-600 rounded-lg shadow-sm p-6">
-            <h2 className="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2">
-              📊 Consolidação do Administrador
-              <span className="text-sm font-normal text-slate-500 bg-slate-100 px-2 py-1 rounded">
-                Visível apenas para você
-              </span>
+        <section className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+          <div className="p-6 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
+            <h2 className="text-lg font-bold text-slate-800">
+              📅 Acumulado Anual ({currentYear})
+              {isAdmin ? (
+                <span className="ml-2 text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full">
+                  Visão Geral COLIH
+                </span>
+              ) : (
+                <span className="ml-2 text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full">
+                  Meus Números
+                </span>
+              )}
             </h2>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-              <div className="bg-slate-50 p-4 rounded-lg">
-                <p className="text-sm text-slate-500">Membros que reportaram</p>
-                <p className="text-2xl font-bold text-slate-800">
-                  {allReports.length}
-                </p>
-              </div>
-              <div className="bg-green-50 p-4 rounded-lg">
-                <p className="text-sm text-green-700">
-                  Total de Visitas Preventivas
-                </p>
-                <p className="text-2xl font-bold text-green-800">
-                  {totalVisits}
-                </p>
-              </div>
-              <div className="bg-blue-50 p-4 rounded-lg">
-                <p className="text-sm text-blue-700">
-                  Total de Casos (Ajustado)
-                </p>
-                <p className="text-3xl font-bold text-blue-800">
-                  {totalCasesFinal}
-                </p>
-                <p className="text-xs text-blue-600 mt-1">
-                  ({totalSolo} sozinhos + {totalSharedAdjusted} em dupla)
-                </p>
-              </div>
-            </div>
-
-            {/* Tabela Detalhada */}
-            <div className="overflow-x-auto border rounded-lg">
-              <table className="w-full text-sm text-left">
-                <thead className="bg-slate-100 text-slate-600">
-                  <tr>
-                    <th className="p-3">Membro</th>
-                    <th className="p-3">Visitas</th>
-                    <th className="p-3">Sozinho</th>
-                    <th className="p-3">Em Dupla</th>
-                    <th className="p-3">Parceiro(s) Citado(s)</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y">
-                  {allReports.map((rep) => (
-                    <tr key={rep.id} className="hover:bg-slate-50">
-                      <td className="p-3 font-medium">{rep.user.name}</td>
-                      <td className="p-3">{rep.visits}</td>
-                      <td className="p-3">{rep.soloCases}</td>
-                      <td className="p-3">{rep.sharedCases}</td>
-                      <td className="p-3 text-slate-500 italic">
-                        {rep.partners || "-"}
-                      </td>
-                    </tr>
-                  ))}
-                  {allReports.length === 0 && (
-                    <tr>
-                      <td
-                        colSpan={5}
-                        className="p-4 text-center text-slate-400"
-                      >
-                        Nenhum relatório enviado neste mês ainda.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
           </div>
-        )}
 
-        {/* FORMULÁRIO INDIVIDUAL (Para todos) */}
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-          <h2 className="text-lg font-semibold text-slate-800 mb-1">
-            Seu Relatório de Atividade
-          </h2>
-          <p className="text-sm text-slate-500 mb-6">
-            Por favor, preencha seus dados referentes a{" "}
-            <strong>{currentMonth}</strong>.
-          </p>
-
-          <form
-            action={async (formData) => {
-              "use server";
-              await submitActivityReport(formData);
-            }}
-            className="space-y-6"
-          >
-            <input type="hidden" name="month" value={currentMonth} />
-
-            {/* Pergunta 1: Casos */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label
-                  htmlFor="soloCases" 
-                  className="block text-sm font-medium text-slate-700 mb-2"
-                >
-                  1. Quantos casos você cuidou{" "}
-                  <span className="text-blue-600">SOZINHO</span>?
-                </label>
-                <input
-                  id="soloCases" 
-                  type="number"
-                  name="soloCases"
-                  min="0"
-                  defaultValue={myReport?.soloCases || 0}
-                  className="w-full border-slate-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 p-2 border"
-                />
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm text-left">
+              <thead className="bg-white text-slate-500 border-b">
+                <tr>
+                  <th className="px-6 py-3">Mês</th>
+                  <th className="px-6 py-3">Visitas Preventivas</th>
+                  <th className="px-6 py-3">Casos (Sozinho)</th>
+                  <th className="px-6 py-3">Casos (Dupla)</th>
+                  <th className="px-6 py-3 font-bold text-slate-900 bg-slate-50">
+                    Total de Casos
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {historyData.map((row) => (
+                  <tr key={row.month} className="hover:bg-slate-50">
+                    <td className="px-6 py-3 font-medium text-slate-700">
+                      {row.month}
+                    </td>
+                    <td className="px-6 py-3">{row.visits}</td>
+                    <td className="px-6 py-3">{row.solo}</td>
+                    <td className="px-6 py-3">{row.shared}</td>
+                    <td className="px-6 py-3 font-bold text-blue-700 bg-slate-50">
+                      {row.total}
+                    </td>
+                  </tr>
+                ))}
+                {/* LINHA DE TOTAIS GERAIS */}
+                <tr className="bg-slate-100 font-bold text-slate-800 border-t-2 border-slate-200">
+                  <td className="px-6 py-4">TOTAL {currentYear}</td>
+                  <td className="px-6 py-4">{yearTotals.visits}</td>
+                  <td className="px-6 py-4">{yearTotals.solo}</td>
+                  <td className="px-6 py-4">{yearTotals.shared}</td>
+                  <td className="px-6 py-4 text-blue-800 text-lg">
+                    {yearTotalAdjusted}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+            {historyData.length === 0 && (
+              <div className="p-8 text-center text-slate-400">
+                Nenhum dado registrado neste ano ainda.
               </div>
+            )}
+          </div>
+        </section>
 
-              <div>
-                <label
-                  htmlFor="sharedCases" 
-                  className="block text-sm font-medium text-slate-700 mb-2"
-                >
-                  2. Quantos casos você cuidou{" "}
-                  <span className="text-amber-600">EM DUPLA</span>?
-                </label>
-                <input
-                  id="sharedCases" 
-                  type="number"
-                  name="sharedCases"
-                  min="0"
-                  defaultValue={myReport?.sharedCases || 0}
-                  className="w-full border-slate-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 p-2 border"
-                />
-                <p className="text-xs text-slate-500 mt-1">
-                  Coloque o número total. O sistema fará o ajuste para não
-                  contar duplicado.
-                </p>
-              </div>
-            </div>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div className="lg:col-span-2 bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+            <h2 className="text-lg font-semibold text-slate-800 mb-1">
+              Preencher Relatório
+            </h2>
+            <p className="text-sm text-slate-500 mb-6">
+              Dados referentes a:{" "}
+              <strong className="text-blue-600">{filterMonth}</strong>
+            </p>
 
-            {/* Pergunta 2: Parceiros */}
-            <div>
-              <label
-                htmlFor="partners" 
-                className="block text-sm font-medium text-slate-700 mb-2"
-              >
-                Com qual(is) membro(s) você trabalhou nos casos em dupla?
-              </label>
-              <input
-                id="partners" 
-                type="text"
-                name="partners"
-                placeholder="Ex: Irmão João da Silva..."
-                defaultValue={myReport?.partners || ""}
-                className="w-full border-slate-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 p-2 border"
-              />
-            </div>
-
-            <hr className="border-slate-100" />
-
-            {/* Pergunta 3: Visitas */}
-            <div>
-              <label
-                htmlFor="visits"
-                className="block text-sm font-medium text-slate-700 mb-2"
-              >
-                3. Quantas Visitas Preventivas você fez?
-              </label>
-              <input
-                id="visits"
-                type="number"
-                name="visits"
-                min="0"
-                defaultValue={myReport?.visits || 0}
-                className="w-full border-slate-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 p-2 border"
-              />
-            </div>
-
-            <button
-              type="submit"
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 rounded-lg transition-colors shadow-sm"
+            <form
+              action={async (formData) => {
+                "use server";
+                await submitActivityReport(formData);
+              }}
+              className="space-y-5"
             >
-              💾 Salvar Relatório
-            </button>
-          </form>
+              <input type="hidden" name="month" value={filterMonth} />
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label
+                    htmlFor="solo"
+                    className="block text-sm font-medium text-slate-700 mb-1"
+                  >
+                    Casos Sozinho
+                  </label>
+                  <input
+                    id="solo"
+                    type="number"
+                    name="soloCases"
+                    min="0"
+                    defaultValue={myReportMonth?.soloCases || 0}
+                    className="w-full border-slate-300 rounded-md shadow-sm p-2 border"
+                  />
+                </div>
+                <div>
+                  <label
+                    htmlFor="shared"
+                    className="block text-sm font-medium text-slate-700 mb-1"
+                  >
+                    Casos em Dupla
+                  </label>
+                  <input
+                    id="shared"
+                    type="number"
+                    name="sharedCases"
+                    min="0"
+                    defaultValue={myReportMonth?.sharedCases || 0}
+                    className="w-full border-slate-300 rounded-md shadow-sm p-2 border"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label
+                  htmlFor="part"
+                  className="block text-sm font-medium text-slate-700 mb-1"
+                >
+                  Parceiros (nos casos em dupla)
+                </label>
+                <input
+                  id="part"
+                  type="text"
+                  name="partners"
+                  placeholder="Nomes..."
+                  defaultValue={myReportMonth?.partners || ""}
+                  className="w-full border-slate-300 rounded-md shadow-sm p-2 border"
+                />
+              </div>
+
+              <div>
+                <label
+                  htmlFor="visits"
+                  className="block text-sm font-medium text-slate-700 mb-1"
+                >
+                  Visitas Preventivas
+                </label>
+                <input
+                  id="visits"
+                  type="number"
+                  name="visits"
+                  min="0"
+                  defaultValue={myReportMonth?.visits || 0}
+                  className="w-full border-slate-300 rounded-md shadow-sm p-2 border"
+                />
+              </div>
+
+              <button
+                type="submit"
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 rounded-lg shadow-sm"
+              >
+                💾 Salvar Mês {filterMonth}
+              </button>
+            </form>
+          </div>
+
+          {isAdmin && (
+            <div className="lg:col-span-1 bg-slate-50 rounded-xl border border-slate-200 p-6 h-fit">
+              <h3 className="font-bold text-slate-700 mb-4 flex items-center gap-2">
+                👥 Detalhes de {filterMonth}
+                <span className="bg-blue-100 text-blue-800 text-xs px-2 py-0.5 rounded">
+                  Admin
+                </span>
+              </h3>
+
+              <div className="space-y-4">
+                <div className="bg-white p-3 rounded border border-slate-100 shadow-sm">
+                  <p className="text-xs text-slate-500 uppercase font-bold">
+                    Total Ajustado do Mês
+                  </p>
+                  <p className="text-2xl font-bold text-blue-600">
+                    {monthTotalAdjusted} Casos
+                  </p>
+                </div>
+
+                <div className="max-h-[400px] overflow-y-auto space-y-2 pr-1">
+                  {allReportsMonth.map((rep) => (
+                    <div
+                      key={rep.id}
+                      className="text-sm bg-white p-3 rounded border border-slate-100"
+                    >
+                      <p className="font-bold text-slate-800">
+                        {rep.user.name}
+                      </p>
+                      <div className="grid grid-cols-3 gap-1 mt-1 text-xs text-slate-500 text-center">
+                        <div className="bg-slate-50 p-1 rounded">
+                          Vis: {rep.visits}
+                        </div>
+                        <div className="bg-slate-50 p-1 rounded">
+                          Soz: {rep.soloCases}
+                        </div>
+                        <div className="bg-slate-50 p-1 rounded">
+                          Dup: {rep.sharedCases}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                  {allReportsMonth.length === 0 && (
+                    <p className="text-sm text-slate-400 italic">
+                      Nenhum dado.
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

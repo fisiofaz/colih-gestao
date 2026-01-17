@@ -31,26 +31,44 @@ export default async function Dashboard() {
   return (
     <div className="min-h-screen bg-slate-50 p-4 md:p-8">
       <main className="max-w-7xl mx-auto">
-        <div className="mb-8 flex flex-col md:flex-row md:items-end justify-between gap-4">
+        <header className="mb-8 flex flex-col md:flex-row md:items-end justify-between gap-4">
           <div>
             <h1 className="text-2xl md:text-3xl font-bold text-slate-800">
               Olá, {session.user?.name?.split(" ")[0]}! 👋
             </h1>
-            <p className="text-slate-500 mt-1">
-              Aqui está o resumo da sua gestão hoje.
-            </p>
+            <p className="text-slate-500 mt-1">Bem-vindo ao Sistema COLIH.</p>
           </div>
-          {/* BOTÃO PARA A NOVA PÁGINA DE ESTATÍSTICAS */}
+        </header>
+
+        {/* --- NOVO: ÁREA DE ACESSO RÁPIDO --- */}
+        <div className="mb-8 grid grid-cols-1 md:grid-cols-2 gap-4">
           <Link
-            href="/estatisticas"
-            className="inline-flex items-center justify-center gap-2 bg-white text-blue-700 border border-blue-200 px-4 py-2 rounded-lg font-medium hover:bg-blue-50 transition-colors shadow-sm"
+            href="/relatorios"
+            className="p-6 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl shadow-md transition-all flex flex-col items-center justify-center gap-2 group"
           >
-            📊 Ver Gráficos Detalhados
+            <span className="text-3xl">📋</span>
+            <span className="font-semibold text-lg">Relatório Mensal</span>
+            <span className="text-indigo-200 text-sm group-hover:text-white">
+              Preencher / Visualizar
+            </span>
+          </Link>
+
+          <Link
+            href="/medicos"
+            className="p-6 bg-white hover:bg-slate-50 text-slate-700 rounded-xl shadow-sm border border-slate-200 transition-all flex flex-col items-center justify-center gap-2"
+          >
+            <span className="text-3xl">🩺</span>
+            <span className="font-semibold text-lg">Gerenciar Médicos</span>
+            <span className="text-slate-400 text-sm">
+              Buscar e Editar Lista
+            </span>
           </Link>
         </div>
 
         {/* --- GRID DE CARDS (Estatísticas) --- */}
-        {/* Celular: 1 coluna | Tablet: 2 colunas | PC: 4 colunas */}
+        <h2 className="text-lg font-bold text-slate-700 mb-4">
+          Panorama Geral
+        </h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           <DashboardCard
             title="Total de Médicos"
@@ -64,7 +82,7 @@ export default async function Dashboard() {
             title="Cooperadores"
             value={cooperatingDoctors}
             icon="🤝"
-            color="bg-indigo-500"
+            color="bg-emerald-500" // Mudei para verde (combinar com cooperador)
             href="/medicos?tipo=COOPERATING"
           />
 
@@ -72,7 +90,7 @@ export default async function Dashboard() {
             title="Atendem SUS"
             value={susDoctors}
             icon="🏥"
-            color="bg-green-500"
+            color="bg-orange-500" // Mudei para laranja para variar
             href="/medicos?isSus=true"
           />
 
@@ -85,7 +103,7 @@ export default async function Dashboard() {
           />
         </div>
 
-        {/* --- ÚLTIMOS CADASTRADOS (Tabela simplificada) --- */}
+        {/* --- ÚLTIMOS CADASTRADOS --- */}
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
           <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
             <h2 className="font-bold text-slate-800">Últimos Cadastros</h2>
@@ -135,7 +153,7 @@ export default async function Dashboard() {
   );
 }
 
-// Subcomponente para os Cards (Fica limpo no código principal)
+// Subcomponente para os Cards
 function DashboardCard({
   title,
   value,
@@ -155,7 +173,7 @@ function DashboardCard({
       className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 flex items-center gap-4 hover:shadow-md transition-shadow group"
     >
       <div
-        className={`${color} w-12 h-12 rounded-lg flex items-center justify-center text-2xl shadow-sm group-hover:scale-110 transition-transform`}
+        className={`${color} text-white w-12 h-12 rounded-lg flex items-center justify-center text-2xl shadow-sm group-hover:scale-110 transition-transform`}
       >
         {icon}
       </div>
