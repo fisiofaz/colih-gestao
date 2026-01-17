@@ -565,3 +565,45 @@ export async function updateUser(id: string, formData: FormData) {
     return { success: false, message: "Erro ao atualizar membro." };
   }
 }
+
+// =========================================================
+// 6. RELATÓRIOS DE ATIVIDADE
+// =========================================================
+
+export async function submitActivityReport(formData: FormData) {
+  const session = await auth();
+  if (!session?.user?.id) return { message: "Não autenticado" };
+
+  const month = formData.get("month") as string; // "2023-12"
+  const soloCases = Number(formData.get("soloCases") || 0);
+  const sharedCases = Number(formData.get("sharedCases") || 0);
+  const visits = Number(formData.get("visits") || 0);
+  const partners = formData.get("partners") as string;
+
+  try {
+    // Usa upsert para criar ou atualizar se já existir naquele mês
+    await prisma.activityReport.upsert({
+      where: {
+        userId_month: {
+          userId: session.user.id,
+          month: month,
+        },
+      },
+      update: { soloCases, sharedCases, visits, partners },
+      create: {
+        userId: session.user.id,
+        month,
+        soloCases,
+        sharedCases,
+        visits,
+        partners,
+      },
+    });
+
+    revalidatePath("/relatorios");
+    return { success: true, message: "Relatório salvo com sucesso!" };
+  } catch (error) {
+    console.error(error);
+    return { success: false, message: "Erro ao salvar relatório." };
+  }
+}

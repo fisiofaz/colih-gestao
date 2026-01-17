@@ -32,29 +32,28 @@ enum Gender {
 
 // MODELO DO USUÁRIO DO SISTEMA (Membro da Colih)
 model User {
-  id            String    @id @default(cuid())
-  name          String?
-  email         String?   @unique
-  password      String?
-  role          UserRole  @default(GVP)
+  id                String    @id @default(cuid())
+  name              String?
+  email             String?   @unique
+  password          String?
+  role              UserRole  @default(GVP)
 
   mustChangePassword Boolean @default(true)
   
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  auditLogs     AuditLog[]
-  
-  // Relações que você já tem...
-  createdDoctors Doctor[]
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  auditLogs         AuditLog[]  
+  createdDoctors    Doctor[]
+  activityReports   ActivityReport[]
 }
 
 // MODELO DO MÉDICO
 model Doctor {
-  id String   @id      @default(cuid())
+  id String         @id      @default(cuid())
 
   // Parte 1: Metadados do contato
-  type        DoctorType
-  contactDate DateTime?  
+  type              DoctorType
+  contactDate       DateTime?  
   
   // Parte 2: Dados Pessoais
   firstName         String      
@@ -129,4 +128,22 @@ model Visit {
   doctor    Doctor   @relation(fields: [doctorId], references: [id], onDelete: Cascade)
   
   createdAt DateTime @default(now())
+}
+
+model ActivityReport {
+  id          String   @id @default(cuid())
+  month       String   // Formato "YYYY-MM" (ex: "2023-12")
+  
+  soloCases   Int      @default(0) // Casos atendidos sozinho
+  sharedCases Int      @default(0) // Casos em dupla
+  visits      Int      @default(0) // Visitas preventivas
+  
+  partners    String?  // Nome do(s) irmão(s) com quem trabalhou
+  
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  createdAt   DateTime @default(now())
+
+  @@unique([userId, month]) // Garante que o membro só mande 1 relatório por mês
 }

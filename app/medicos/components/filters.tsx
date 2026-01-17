@@ -32,6 +32,7 @@ export default function Filters({ cities, specialties }: FiltersProps) {
     <div className="flex flex-col md:flex-row gap-3 w-full md:w-auto">
       {/* Filtro de Cidade */}
       <select
+        aria-label="Filtrar por Cidade"
         className="px-4 py-2 rounded-lg border border-slate-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-600"
         onChange={(e) => handleFilter(e.target.value, "city")}
         defaultValue={searchParams.get("city")?.toString()}
@@ -46,6 +47,7 @@ export default function Filters({ cities, specialties }: FiltersProps) {
 
       {/* Filtro de Especialidade */}
       <select
+        aria-label="Filtrar por Especialidade" 
         className="px-4 py-2 rounded-lg border border-slate-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-600"
         onChange={(e) => handleFilter(e.target.value, "specialty")}
         defaultValue={searchParams.get("specialty")?.toString()}
