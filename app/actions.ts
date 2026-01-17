@@ -61,7 +61,7 @@ export async function getDashboardData() {
   const isGVP = role === "GVP";
 
   try {
-    const [colaboradores, consultores, totalMembros, membrosCOLIH, membrosGVP] =
+    const [colaboradores, consultores, totalMembros, membrosEquipe, membrosGVP] =
       await Promise.all([
         !isGVP
           ? prisma.doctor.findMany({
@@ -80,7 +80,11 @@ export async function getDashboardData() {
           : Promise.resolve([]),
 
         prisma.user.count(),
-        prisma.user.count({ where: { role: UserRole.COLIH } }),
+        prisma.user.count({
+          where: {
+            role: { in: [UserRole.COLIH, UserRole.ADMIN] },
+          },
+        }),
         prisma.user.count({ where: { role: UserRole.GVP } }),
       ]);
 
@@ -93,7 +97,7 @@ export async function getDashboardData() {
         medicos: colaboradores.length + consultores.length,
         membros: {
           total: totalMembros,
-          colih: membrosCOLIH,
+          colih: membrosEquipe,
           GVP: membrosGVP,
         },
       },
@@ -148,11 +152,12 @@ export async function createDoctor(formData: FormData) {
   }
 
   try {
-    const { type, ...rest } = validatedFields.data;
+    const { type, address, ...rest } = validatedFields.data;
 
     await prisma.doctor.create({
       data: {
         ...rest,
+        address: address || "Endereço não informado",
         type: type as DoctorType,
         createdById: session.user.id,
       },
