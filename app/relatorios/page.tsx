@@ -2,8 +2,8 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import { submitActivityReport } from "@/app/actions";
+import MonthSelector from "./month-selector"; 
 
-// 1. Criamos um tipo para os dados, assim o TypeScript fica feliz
 type MonthlyStats = {
   visits: number;
   solo: number;
@@ -16,6 +16,8 @@ export default async function ReportsPage({
   searchParams: Promise<{ month?: string }>;
 }) {
   const session = await auth();
+
+  // Segurança reforçada
   if (!session?.user?.id) {
     redirect("/login");
   }
@@ -29,7 +31,7 @@ export default async function ReportsPage({
     params.month ||
     `${currentYear}-${String(today.getMonth() + 1).padStart(2, "0")}`;
 
-  // 1. DADOS DO MÊS SELECIONADO
+  // DADOS DO MÊS SELECIONADO
   const myReportMonth = await prisma.activityReport.findUnique({
     where: { userId_month: { userId: session.user.id, month: filterMonth } },
   });
@@ -56,7 +58,7 @@ export default async function ReportsPage({
   );
   const monthTotalAdjusted = monthSolo + Math.ceil(monthShared / 2);
 
-  // 2. ESTATÍSTICAS ANUAIS
+  // ESTATÍSTICAS ANUAIS
   const annualWhere = isAdmin
     ? { month: { startsWith: `${currentYear}-` } }
     : { month: { startsWith: `${currentYear}-` }, userId: session.user.id };
@@ -66,7 +68,7 @@ export default async function ReportsPage({
     orderBy: { month: "asc" },
   });
 
-  // Agrupamento (Tipado corretamente agora)
+  // Agrupamento
   const monthlyStats = new Map<string, MonthlyStats>();
 
   annualReports.forEach((rep) => {
@@ -74,7 +76,7 @@ export default async function ReportsPage({
     if (!monthlyStats.has(m)) {
       monthlyStats.set(m, { visits: 0, solo: 0, shared: 0 });
     }
-    const current = monthlyStats.get(m)!; // O "!" garante que existe pois acabamos de criar se não existia
+    const current = monthlyStats.get(m)!;
     current.visits += rep.visits;
     current.solo += rep.soloCases;
     current.shared += rep.sharedCases;
@@ -82,7 +84,6 @@ export default async function ReportsPage({
 
   const sortedStats = Array.from(monthlyStats.entries()).sort();
 
-  // Calcula os totais do ano
   const yearTotals = sortedStats.reduce(
     (acc, [_, stats]) => {
       acc.visits += stats.visits;
@@ -93,7 +94,6 @@ export default async function ReportsPage({
     { visits: 0, solo: 0, shared: 0 },
   );
 
-  // Monta a lista para exibição
   const historyData = sortedStats.map(([month, stats]) => {
     const adjustedTotal = isAdmin
       ? stats.solo + Math.ceil(stats.shared / 2)
@@ -109,6 +109,7 @@ export default async function ReportsPage({
   return (
     <div className="min-h-screen bg-slate-50 p-4 md:p-8">
       <div className="max-w-5xl mx-auto space-y-8">
+        {/* TOPO */}
         <div className="flex flex-col md:flex-row justify-between items-center gap-4">
           <div>
             <h1 className="text-3xl font-bold text-slate-800">
@@ -118,26 +119,11 @@ export default async function ReportsPage({
               Gestão de Visitas e Casos Hospitalares
             </p>
           </div>
-          <form className="flex items-center gap-2 bg-white p-2 rounded-lg border shadow-sm">
-            <label
-              htmlFor="month-selector"
-              className="text-sm font-medium text-slate-600 pl-2"
-            >
-              Mês Referência:
-            </label>
-            <input
-              id="month-selector"
-              type="month"
-              name="month"
-              defaultValue={filterMonth}
-              className="border-none text-slate-700 font-medium focus:ring-0 cursor-pointer"
-              onChange={(e) => {
-                window.location.href = `/relatorios?month=${e.target.value}`;
-              }}
-            />
-          </form>
+
+          <MonthSelector currentMonth={filterMonth} />
         </div>
 
+        {/* TABELA ANUAL */}
         <section className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
           <div className="p-6 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
             <h2 className="text-lg font-bold text-slate-800">
@@ -181,7 +167,6 @@ export default async function ReportsPage({
                     </td>
                   </tr>
                 ))}
-                {/* LINHA DE TOTAIS GERAIS */}
                 <tr className="bg-slate-100 font-bold text-slate-800 border-t-2 border-slate-200">
                   <td className="px-6 py-4">TOTAL {currentYear}</td>
                   <td className="px-6 py-4">{yearTotals.visits}</td>
@@ -201,6 +186,7 @@ export default async function ReportsPage({
           </div>
         </section>
 
+        {/* FORMULÁRIO */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2 bg-white rounded-xl shadow-sm border border-slate-200 p-6">
             <h2 className="text-lg font-semibold text-slate-800 mb-1">
