@@ -28,6 +28,8 @@ export default async function Dashboard() {
     }),
   ]);
 
+  const isAdmin = session.user?.role === "ADMIN";
+
   return (
     <div className="min-h-screen bg-slate-50 p-4 md:p-8">
       <main className="max-w-7xl mx-auto">
@@ -63,6 +65,19 @@ export default async function Dashboard() {
               Buscar e Editar Lista
             </span>
           </Link>
+
+          {isAdmin && (
+            <Link
+              href="/relatorios/monitoramento"
+              className="p-6 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 rounded-xl shadow-sm transition-all flex flex-col items-center justify-center gap-2 group"
+            >
+              <span className="text-3xl">🕵️‍♂️</span>
+              <span className="font-semibold text-lg">Cobrar Atrasados</span>
+              <span className="text-red-400 text-sm group-hover:text-red-700">
+                Monitorar Entregas
+              </span>
+            </Link>
+          )}
         </div>
 
         {/* --- GRID DE CARDS (Estatísticas) --- */}

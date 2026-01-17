@@ -607,3 +607,22 @@ export async function submitActivityReport(formData: FormData) {
     return { success: false, message: "Erro ao salvar relatório." };
   }
 }
+
+// =========================================================
+// 7. Cadastrar o WhatsApp do usuário logado
+// =========================================================
+
+
+export async function updateMyWhatsapp(formData: FormData) {
+  const session = await auth();
+  if (!session?.user?.id) return;
+
+  const whatsapp = formData.get("whatsapp") as string;
+
+  await prisma.user.update({
+    where: { id: session.user.id },
+    data: { whatsapp },
+  });
+
+  revalidatePath("/relatorios/monitoramento");
+}
